@@ -19,6 +19,8 @@ pub mod errors {
         ThresholdNotMet,
         #[msg("Protocol already graduated")]
         AlreadyGraduated,
+        #[msg("Protocol not yet graduated")]
+        NotGraduated,
         #[msg("Unauthorized")]
         Unauthorized,
         #[msg("No USDC received from swap")]
@@ -31,6 +33,12 @@ pub mod errors {
         MathOverflow,
         #[msg("Token validation failed")]
         TokenValidationFailed,
+        #[msg("Invalid Raydium program")]
+        InvalidRaydiumProgram,
+        #[msg("Invalid pool owner")]
+        InvalidPoolOwner,
+        #[msg("Insufficient vault balance")]
+        InsufficientVaultBalance,
     }
 }
 
@@ -75,7 +83,6 @@ pub mod utils {
     use anchor_lang::prelude::*;
 
     /// Calculate $LITTER output using constant product bonding curve
-    /// Formula: litter_out = (virtual_litter * usdc_in) / (virtual_usdc + usdc_in)
     pub fn calculate_litter_out(
         usdc_in: u64,
         virtual_usdc: u64,
@@ -101,8 +108,8 @@ pub mod utils {
             return None;
         }
         let price = (virtual_usdc as u128)
-            .checked_mul(1_000_000_000_000)? // 12 decimals for precision
-            / (virtual_litter as u128);
+            .checked_mul(1_000_000_000_000)?
+            .checked_div(virtual_litter as u128)?;
         Some(price)
     }
 }
@@ -114,7 +121,7 @@ pub mod litterbox_v2 {
     use crate::state::*;
     use crate::utils::*;
 
-    /// Initializes the protocol with Config and VirtualPool
+    /// Initializes the protocol
     pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<()> {
         let config = &mut ctx.accounts.config;
         let pool = &mut ctx.accounts.virtual_pool;
@@ -125,7 +132,7 @@ pub mod litterbox_v2 {
         config.usdc_vault = ctx.accounts.usdc_vault.key();
         config.litter_vault = ctx.accounts.litter_vault.key();
         config.graduation_threshold = params.graduation_threshold;
-        config.pool_mode = state::PoolMode::Virtual as u8;
+        config.pool_mode = PoolMode::Virtual as u8;
         config.real_pool_address = Pubkey::default();
         config.bump = ctx.bumps.config;
 
@@ -146,7 +153,7 @@ pub mod litterbox_v2 {
         Ok(())
     }
 
-    /// Deposit any SPL token → Jupiter swap to USDC → Calculate $LITTER → Distribute
+    /// Deposit any SPL token
     pub fn deposit_any_token(
         ctx: Context<DepositAnyToken>,
         amount_in: u64,
@@ -155,15 +162,10 @@ pub mod litterbox_v2 {
         let config = &ctx.accounts.config;
         let pool = &mut ctx.accounts.virtual_pool;
 
-        // Validate minimum deposit ($1.00 in USDC decimals)
-        const MIN_DEPOSIT_USDC: u64 = 1_000_000; // $1.00
+        const MIN_DEPOSIT_USDC: u64 = 1_000_000;
         require!(amount_in >= MIN_DEPOSIT_USDC, LitterError::DepositTooSmall);
 
-        // In Phase 2: Jupiter CPI happens client-side, this receives USDC
-        // For now, assume amount_in is already in USDC after swap
         let usdc_received = amount_in;
-
-        // Calculate 2% platform fee
         let fee_amount = usdc_received
             .checked_mul(2)
             .unwrap()
@@ -171,17 +173,14 @@ pub mod litterbox_v2 {
             .unwrap();
         let value_after_fee = usdc_received - fee_amount;
 
-        // Calculate $LITTER output using bonding curve
         let litter_out = calculate_litter_out(
             value_after_fee,
             pool.virtual_usdc_reserve,
             pool.virtual_litter_reserve,
         )?;
 
-        // Slippage check
         require!(litter_out >= min_litter_out, LitterError::SlippageExceeded);
 
-        // Update virtual reserves
         pool.virtual_usdc_reserve = pool
             .virtual_usdc_reserve
             .checked_add(value_after_fee)
@@ -191,11 +190,6 @@ pub mod litterbox_v2 {
             .checked_sub(litter_out)
             .ok_or(LitterError::MathOverflow)?;
 
-        // Transfer $LITTER from vault to user
-        // In Phase 2: Use CPI with vault authority
-        // token::transfer(ctx.accounts.transfer_ctx(), litter_out)?;
-
-        // Update accumulated USDC
         pool.accumulated_usdc = pool
             .accumulated_usdc
             .checked_add(value_after_fee)
@@ -205,7 +199,6 @@ pub mod litterbox_v2 {
             .checked_add(litter_out)
             .ok_or(LitterError::MathOverflow)?;
 
-        // Auto-graduation check
         if pool.accumulated_usdc >= config.graduation_threshold {
             emit!(GraduationReady {
                 accumulated: pool.accumulated_usdc,
@@ -223,12 +216,11 @@ pub mod litterbox_v2 {
         Ok(())
     }
 
-    /// Permissionless sweep: Convert dust tokens → USDC → Accumulate
+    /// Permissionless sweep
     pub fn sweep_and_swap(ctx: Context<SweepAndSwap>) -> Result<()> {
         let usdc_vault = &ctx.accounts.usdc_vault;
         let virtual_pool = &mut ctx.accounts.virtual_pool;
 
-        // Calculate USDC delta from Jupiter swap
         let usdc_balance_now = usdc_vault.amount;
         let previously_accumulated = virtual_pool.accumulated_usdc;
         
@@ -236,12 +228,10 @@ pub mod litterbox_v2 {
             .checked_sub(previously_accumulated)
             .ok_or(LitterError::NoUsdcReceived)?;
 
-        // Minimum sweep threshold ($0.10)
         const MIN_SWEEP_USDC: u64 = 100_000;
         require!(usdc_gained >= MIN_SWEEP_USDC, LitterError::SweepTooSmall);
         require!(usdc_gained > 0, LitterError::NoUsdcReceived);
 
-        // Update accumulated USDC (does NOT affect virtual reserves)
         virtual_pool.accumulated_usdc = virtual_pool
             .accumulated_usdc
             .checked_add(usdc_gained)
@@ -256,31 +246,139 @@ pub mod litterbox_v2 {
         Ok(())
     }
 
-    /// Manual graduation trigger (admin only)
-    pub fn graduate_to_real(ctx: Context<GraduateToReal>) -> Result<()> {
+    /// Graduate to real Raydium pool
+    pub fn graduate_to_real(
+        ctx: Context<GraduateToReal>,
+        usdc_amount: u64,
+        litter_amount: u64,
+    ) -> Result<()> {
+        let virtual_pool = &ctx.accounts.virtual_pool;
         let config = &mut ctx.accounts.config;
-        let pool = &mut ctx.accounts.virtual_pool;
 
         require!(
-            pool.accumulated_usdc >= config.graduation_threshold,
+            virtual_pool.accumulated_usdc >= config.graduation_threshold,
             LitterError::ThresholdNotMet
         );
         require!(
-            config.pool_mode == state::PoolMode::Virtual as u8,
+            config.pool_mode == PoolMode::Virtual as u8,
             LitterError::AlreadyGraduated
         );
 
-        // In Phase 2: Create Raydium pool via CPI
-        // - Take accumulated USDC
-        // - Take matching $LITTER from vault
-        // - Initialize Raydium pool
-        // - Store pool address
+        require!(
+            usdc_amount > 0 && usdc_amount <= ctx.accounts.usdc_vault.amount,
+            LitterError::InsufficientVaultBalance
+        );
+        require!(
+            litter_amount > 0 && litter_amount <= ctx.accounts.litter_vault.amount,
+            LitterError::InsufficientVaultBalance
+        );
 
-        config.pool_mode = state::PoolMode::Real as u8;
+        let raydium_pool_owner = ctx.accounts.raydium_pool.owner;
+        let cpmm_program_id = ctx.accounts.raydium_cpmm_program.key();
+        require!(
+            raydium_pool_owner == cpmm_program_id,
+            LitterError::InvalidPoolOwner
+        );
+
+        let vault_bump = ctx.bumps.vault_authority;
+        let seeds: &[&[u8]] = &[LITTER_VAULT_SEED, &[vault_bump]];
+        let signer_seeds = &[seeds];
+
+        let usdc_cpi = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.usdc_vault.to_account_info(),
+                to: ctx.accounts.raydium_usdc_vault.to_account_info(),
+                authority: ctx.accounts.vault_authority.to_account_info(),
+            },
+            signer_seeds,
+        );
+        transfer(usdc_cpi, usdc_amount)?;
+
+        let litter_cpi = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.litter_vault.to_account_info(),
+                to: ctx.accounts.raydium_litter_vault.to_account_info(),
+                authority: ctx.accounts.vault_authority.to_account_info(),
+            },
+            signer_seeds,
+        );
+        transfer(litter_cpi, litter_amount)?;
+
+        config.pool_mode = PoolMode::Real as u8;
+        config.real_pool_address = ctx.accounts.raydium_pool.key();
+
+        msg!(
+            "Graduated! Pool: {}. USDC seeded: {}. LITTER seeded: {}.",
+            ctx.accounts.raydium_pool.key(),
+            usdc_amount,
+            litter_amount,
+        );
 
         emit!(ProtocolGraduated {
             pool_mode: config.pool_mode,
+            pool_address: config.real_pool_address,
         });
+
+        Ok(())
+    }
+
+    /// Flush remaining liquidity to Raydium pool
+    pub fn flush_to_lp(
+        ctx: Context<FlushToLp>,
+        usdc_amount: u64,
+        litter_amount: u64,
+    ) -> Result<()> {
+        require!(
+            usdc_amount <= ctx.accounts.usdc_vault.amount,
+            LitterError::InsufficientVaultBalance
+        );
+        require!(
+            litter_amount <= ctx.accounts.litter_vault.amount,
+            LitterError::InsufficientVaultBalance
+        );
+        require!(
+            usdc_amount > 0 || litter_amount > 0,
+            LitterError::InvalidAmount
+        );
+
+        let vault_bump = ctx.bumps.vault_authority;
+        let seeds: &[&[u8]] = &[LITTER_VAULT_SEED, &[vault_bump]];
+        let signer_seeds = &[seeds];
+
+        if usdc_amount > 0 {
+            let cpi = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.usdc_vault.to_account_info(),
+                    to: ctx.accounts.raydium_usdc_vault.to_account_info(),
+                    authority: ctx.accounts.vault_authority.to_account_info(),
+                },
+                signer_seeds,
+            );
+            transfer(cpi, usdc_amount)?;
+        }
+
+        if litter_amount > 0 {
+            let cpi = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.litter_vault.to_account_info(),
+                    to: ctx.accounts.raydium_litter_vault.to_account_info(),
+                    authority: ctx.accounts.vault_authority.to_account_info(),
+                },
+                signer_seeds,
+            );
+            transfer(cpi, litter_amount)?;
+        }
+
+        msg!(
+            "Flush to LP: {} USDC + {} LITTER added to Raydium pool {}.",
+            usdc_amount,
+            litter_amount,
+            ctx.accounts.config.real_pool_address,
+        );
 
         Ok(())
     }
@@ -297,7 +395,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = authority,
-        associated_token::mint = litter_mint,
+        associated_token::mint = usdc_mint,
         associated_token::authority = config
     )]
     pub usdc_vault: Account<'info, TokenAccount>,
@@ -337,14 +435,14 @@ pub struct SweepAndSwap<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
     #[account(
-        seeds = [b"config"],
+        seeds = [CONFIG_SEED],
         bump = config.bump,
-        constraint = config.pool_mode == state::PoolMode::Virtual as u8 @ LitterError::AlreadyGraduated,
+        constraint = config.pool_mode == PoolMode::Virtual as u8 @ LitterError::AlreadyGraduated,
     )]
     pub config: Account<'info, state::Config>,
     #[account(
         mut,
-        seeds = [b"virtual_pool"],
+        seeds = [VIRTUAL_POOL_SEED],
         bump = virtual_pool.bump,
     )]
     pub virtual_pool: Account<'info, state::VirtualPool>,
@@ -359,10 +457,81 @@ pub struct SweepAndSwap<'info> {
 #[derive(Accounts)]
 pub struct GraduateToReal<'info> {
     #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [CONFIG_SEED],
+        bump = config.bump,
+        constraint = config.pool_mode == PoolMode::Virtual as u8 @ LitterError::AlreadyGraduated,
+    )]
     pub config: Account<'info, state::Config>,
-    #[account(mut)]
+    #[account(
+        seeds = [VIRTUAL_POOL_SEED],
+        bump = virtual_pool.bump,
+    )]
     pub virtual_pool: Account<'info, state::VirtualPool>,
-    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        address = config.usdc_vault @ LitterError::NoUsdcReceived,
+    )]
+    pub usdc_vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        address = config.litter_vault @ LitterError::InsufficientVaultBalance,
+    )]
+    pub litter_vault: Account<'info, TokenAccount>,
+    #[account(
+        seeds = [LITTER_VAULT_SEED],
+        bump,
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub raydium_usdc_vault: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub raydium_litter_vault: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub raydium_pool: UncheckedAccount<'info>,
+    #[account(
+        constraint = (
+            raydium_cpmm_program.key().to_string() == crate::state::RAYDIUM_CPMM_MAINNET ||
+            raydium_cpmm_program.key().to_string() == crate::state::RAYDIUM_CPMM_DEVNET
+        ) @ LitterError::InvalidRaydiumProgram,
+    )]
+    pub raydium_cpmm_program: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct FlushToLp<'info> {
+    #[account(mut)]
+    pub caller: Signer<'info>,
+    #[account(
+        seeds = [CONFIG_SEED],
+        bump = config.bump,
+        constraint = config.pool_mode == PoolMode::Real as u8 @ LitterError::NotGraduated,
+    )]
+    pub config: Account<'info, state::Config>,
+    #[account(
+        mut,
+        address = config.usdc_vault @ LitterError::NoUsdcReceived,
+    )]
+    pub usdc_vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        address = config.litter_vault @ LitterError::InsufficientVaultBalance,
+    )]
+    pub litter_vault: Account<'info, TokenAccount>,
+    #[account(
+        seeds = [LITTER_VAULT_SEED],
+        bump,
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub raydium_usdc_vault: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub raydium_litter_vault: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 // --- Events ---
@@ -393,13 +562,14 @@ pub struct GraduationReady {
 #[event]
 pub struct ProtocolGraduated {
     pub pool_mode: u8,
+    pub pool_address: Pubkey,
 }
 
 // --- Constants ---
 
-pub const MIN_DEPOSIT_USDC: u64 = 1_000_000; // $1.00
-pub const MIN_SWEEP_USDC: u64 = 100_000; // $0.10
-pub const PLATFORM_FEE_BPS: u16 = 200; // 2%
+pub const MIN_DEPOSIT_USDC: u64 = 1_000_000;
+pub const MIN_SWEEP_USDC: u64 = 100_000;
+pub const PLATFORM_FEE_BPS: u16 = 200;
 
 // --- Params Struct ---
 
@@ -408,4 +578,13 @@ pub struct InitializeParams {
     pub graduation_threshold: u64,
     pub virtual_initial_usdc: u64,
     pub virtual_initial_litter: u64,
+}
+
+// --- Raydium Constants ---
+
+pub mod state {
+    use anchor_lang::prelude::*;
+    
+    pub const RAYDIUM_CPMM_MAINNET: &str = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
+    pub const RAYDIUM_CPMM_DEVNET: &str = "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW";
 }
