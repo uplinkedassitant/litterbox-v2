@@ -1,0 +1,22 @@
+[package]
+name = "litterbox-v2"
+version = "0.2.0"
+description = "LitterBox v2.0 - Auto-LP Launchpad with Virtual Pool"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "litterbox_v2"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
+spl-token = "4.0.0"
+spl-math = "0.2.0"
