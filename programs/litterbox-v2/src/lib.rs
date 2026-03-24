@@ -4,7 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("EqPiWgCG671GmkFMZTtn6GcUt2Xbc2p8rzj17dgFKX7m");
 
 pub mod errors {
     use anchor_lang::prelude::*;

@@ -9,7 +9,7 @@ skip_lint = false
 litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 [programs.devnet]
-litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+litterbox_v2 = "EqPiWgCG671GmkFMZTtn6GcUt2Xbc2p8rzj17dgFKX7m"
 
 [programs.mainnet]
 litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
