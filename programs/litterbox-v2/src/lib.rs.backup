@@ -4,7 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
 };
 
-declare_id!("8LhTE9owPwbdJMHbE7Nwi9i2H66JsPHzjwWbKPgLUa7t");
+declare_id!("EqPiWgCG671GmkFMZTtn6GcUt2Xbc2p8rzj17dgFKX7m");
 
 pub mod errors {
     use anchor_lang::prelude::*;
@@ -482,12 +482,12 @@ pub struct GraduateToReal<'info> {
         address = config.litter_vault @ LitterError::InsufficientVaultBalance,
     )]
     pub litter_vault: Account<'info, TokenAccount>,
-    /// CHECK: PDA used for signing vault authority
-  #[account(
+    #[account(
+    /// CHECK: PDA used for signing
     seeds = [LITTER_VAULT_SEED],
-    bump,
-  )]
-  pub vault_authority: UncheckedAccount<'info>,
+        bump,
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub raydium_usdc_vault: UncheckedAccount<'info>,
     #[account(mut)]
@@ -525,12 +525,12 @@ pub struct FlushToLp<'info> {
         address = config.litter_vault @ LitterError::InsufficientVaultBalance,
     )]
     pub litter_vault: Account<'info, TokenAccount>,
-    /// CHECK: PDA used for signing vault authority
-  #[account(
+    #[account(
+    /// CHECK: PDA used for signing
     seeds = [LITTER_VAULT_SEED],
-    bump,
-  )]
-  pub vault_authority: UncheckedAccount<'info>,
+        bump,
+    )]
+    pub vault_authority: UncheckedAccount<'info>,
     #[account(mut)]
     pub raydium_usdc_vault: UncheckedAccount<'info>,
     #[account(mut)]

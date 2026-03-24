@@ -1,5 +1,5 @@
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.32.1"
 
 [features]
 resolution = true
@@ -9,7 +9,7 @@ skip_lint = false
 litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 [programs.devnet]
-litterbox_v2 = "EqPiWgCG671GmkFMZTtn6GcUt2Xbc2p8rzj17dgFKX7m"
+litterbox_v2 = "8LhTE9owPwbdJMHbE7Nwi9i2H66JsPHzjwWbKPgLUa7t"
 
 [programs.mainnet]
 litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
