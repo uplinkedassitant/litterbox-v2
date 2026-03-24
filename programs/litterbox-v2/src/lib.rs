@@ -580,11 +580,7 @@ pub struct InitializeParams {
     pub virtual_initial_litter: u64,
 }
 
-// --- Raydium Constants ---
+// --- Re-exports ---
 
-pub mod state {
-    use anchor_lang::prelude::*;
-    
-    pub const RAYDIUM_CPMM_MAINNET: &str = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
-    pub const RAYDIUM_CPMM_DEVNET: &str = "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW";
-}
+pub use errors::LitterError;
+pub use state::{Config, VirtualPool, CONFIG_SEED, LITTER_VAULT_SEED, VIRTUAL_POOL_SEED};
