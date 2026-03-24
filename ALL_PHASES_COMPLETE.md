@@ -112,7 +112,7 @@ anchor deploy --provider.cluster devnet
 npx ts-node scripts/initialize.ts \
   --graduation-threshold 1000000000 \
   --virtual-initial-usdc 1000000000 \
-  --virtual-initial-litter 1000000000000000
+  --virtual-initial-litter 1000000000000000000
 ```
 
 ### 5. Test Deposits

@@ -11,10 +11,10 @@
 Before deploying the program, create the SPL token:
 
 ```bash
-# Create token with 6 decimals
-spl-token create-token --decimals 6
+# Create token with 9 decimals (standard for utility tokens)
+spl-token create-token --decimals 9
 
-# Mint 1 billion tokens (1,000,000,000 * 10^6)
+# Mint 1 billion tokens (1,000,000,000 * 10^9)
 spl-token mint <MINT_ADDRESS> 1000000000000000000
 
 # Verify supply
