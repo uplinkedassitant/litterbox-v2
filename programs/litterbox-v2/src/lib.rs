@@ -488,12 +488,16 @@ pub struct GraduateToReal<'info> {
     bump,
   )]
   pub vault_authority: UncheckedAccount<'info>,
+    /// CHECK: Raydium USDC vault - verified by Raydium program
     #[account(mut)]
     pub raydium_usdc_vault: UncheckedAccount<'info>,
+    /// CHECK: Raydium LITTER vault - verified by Raydium program
     #[account(mut)]
     pub raydium_litter_vault: UncheckedAccount<'info>,
+    /// CHECK: Raydium pool account - verified by Raydium program
     #[account(mut)]
     pub raydium_pool: UncheckedAccount<'info>,
+    /// CHECK: Raydium CPMM program - verified by constraint
     #[account(
         constraint = (
             raydium_cpmm_program.key().to_string() == crate::state::RAYDIUM_CPMM_MAINNET ||
@@ -531,8 +535,10 @@ pub struct FlushToLp<'info> {
     bump,
   )]
   pub vault_authority: UncheckedAccount<'info>,
+    /// CHECK: Raydium USDC vault - verified by Raydium program
     #[account(mut)]
     pub raydium_usdc_vault: UncheckedAccount<'info>,
+    /// CHECK: Raydium LITTER vault - verified by Raydium program
     #[account(mut)]
     pub raydium_litter_vault: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,

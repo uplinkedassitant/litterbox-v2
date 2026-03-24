@@ -1,0 +1,43 @@
+# Surfpool Configuration for LitterBox v2.0
+# This enables local testing with zero SOL cost
+
+[network]
+slot_time = 400
+epoch_duration = 432000
+# Fork from mainnet to get real USDC, Raydium, etc.
+rpc_url = "https://api.mainnet-beta.solana.com"
+
+[behavior]
+# Start from genesis for clean state
+genesis = false
+# Fork from current mainnet state
+point_fork = true
+
+[accounts]
+# Clone essential programs from mainnet
+clone = [
+  # Token Program
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  # Associated Token Program  
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+  # USDC Mint (mainnet)
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  # Raydium CPMM Program (mainnet)
+  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C",
+]
+
+[programs]
+# Auto-deploy our LitterBox program
+# Path is relative to project root
+deploy = ["./target/deploy/litterbox_v2.so"]
+
+[airdrop]
+# Airdrop SOL to our wallet by default
+# This gives us infinite test SOL
+addresses = []
+amount = 10000000000000  # 10,000 SOL (in lamports)
+
+[studio]
+# Enable Surfpool Studio web dashboard
+enabled = true
+port = 18488

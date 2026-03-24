@@ -17,10 +17,11 @@ import * as path from "path";
 import { BN } from "bn.js";
 
 // Configuration
-const PROGRAM_ID = new PublicKey("8LhTE9owPwbdJMHbE7Nwi9i2H66JsPHzjwWbKPgLUa7t");
+const PROGRAM_ID = new PublicKey("GqJ4yCJVavEMhYfwpb2M9ydrJXeFfi3Sw8zgHo3xK9hR");
 const LITTER_MINT = new PublicKey("H5RwQLRyBAvVvXbYxzWRYFjXWPjfLtj2dtTPiChRTUK7");
 const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-const CLUSTER_URL = "https://api.devnet.solana.com";
+// Default to Surfpool localhost, fallback to devnet
+const CLUSTER_URL = process.env.ANCHOR_PROVIDER_URL || "http://127.0.0.1:8899";
 
 // Anchor discriminators
 const CONFIG_DISCRIMINATOR = [23, 173, 177, 121, 156, 223, 155, 148];
