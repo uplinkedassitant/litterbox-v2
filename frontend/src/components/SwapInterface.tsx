@@ -55,6 +55,17 @@ export function SwapInterface() {
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
+      // Try to simulate first to get better error
+      try {
+        await connection.simulateTransaction(transaction);
+      } catch (simError: any) {
+        console.error('Simulation error:', simError);
+        if (simError.logs) {
+          console.log('Simulation logs:', simError.logs);
+        }
+        throw simError;
+      }
+
       const signature = await sendTransaction(transaction, connection);
       setTxSignature(signature);
       setShowPreview(false);
