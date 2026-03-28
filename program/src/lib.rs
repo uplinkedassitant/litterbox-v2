@@ -9,7 +9,6 @@ use pinocchio::{
 };
 use pinocchio_pubkey::declare_id;
 use pinocchio_system::instructions::CreateAccount;
-use pinocchio_tkn::common::Transfer;
 
 // ---------------------------------------------------------------------------
 // Program ID
@@ -27,34 +26,8 @@ const FEE_BPS: u64 = 200;
 const FEE_DENOMINATOR: u64 = 10000;
 
 // Initial virtual reserves for bonding curve
-// 1000 LITTER tokens (6 decimals)
-const INITIAL_VIRTUAL_LITTER: u64 = 1_000_000_000_000;
-// 1000 SOL (9 decimals - lamports)
-const INITIAL_VIRTUAL_SOL: u64 = 1_000_000_000_000;
-
-// ---------------------------------------------------------------------------
-// State Structures
-// ---------------------------------------------------------------------------
-
-/// Config Account (76 bytes)
-#[repr(C)]
-pub struct Config {
-    pub authority: Pubkey,    // 32 bytes
-    pub litter_mint: Pubkey,  // 32 bytes
-    pub fee_bps: u64,         // 8 bytes
-    pub _padding: [u8; 4],    // 4 bytes padding
-}
-
-/// Pool Account (40 bytes)
-#[repr(C)]
-pub struct Pool {
-    pub virtual_litter: u64,  // 8 bytes
-    pub virtual_sol: u64,     // 8 bytes - was virtual_usdc
-    pub real_litter: u64,     // 8 bytes
-    pub real_sol: u64,        // 8 bytes - was real_usdc
-    pub is_active: u8,        // 1 byte
-    pub _padding: [u8; 7],    // 7 bytes
-}
+const INITIAL_VIRTUAL_LITTER: u64 = 1_000_000_000_000; // 1000 tokens (12 decimals)
+const INITIAL_VIRTUAL_SOL: u64 = 1_000_000_000_000;    // 1000 SOL (in lamports)
 
 // ---------------------------------------------------------------------------
 // Entry Point
@@ -149,9 +122,9 @@ fn process_initialize(
         let pool_data = unsafe { pool_acc.borrow_mut_data_unchecked() };
         pool_data[0..8].copy_from_slice(&INITIAL_VIRTUAL_LITTER.to_le_bytes());
         pool_data[8..16].copy_from_slice(&INITIAL_VIRTUAL_SOL.to_le_bytes());
-        pool_data[16..24].copy_from_slice(&0u64.to_le_bytes());  // real_litter = 0
-        pool_data[24..32].copy_from_slice(&0u64.to_le_bytes());  // real_sol = 0
-        pool_data[32] = 0;  // is_active = false (activates on first deposit)
+        pool_data[16..24].copy_from_slice(&0u64.to_le_bytes());
+        pool_data[24..32].copy_from_slice(&0u64.to_le_bytes());
+        pool_data[32] = 0;
     }
 
     Ok(())
@@ -165,68 +138,48 @@ fn process_deposit(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    // Expected accounts:
-    // 0. [signer, writable] user
-    // 1. [writable] config_pda
-    // 2. [writable] pool_pda
-    // 3. [writable] user_litter_ata
-    // 4. [] litter_mint
-    // 5. [] token_program
-    
-    if accounts.len() < 6 {
+    if accounts.len() < 3 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let user = &accounts[0];
-    let config_acc = &accounts[1];
+    let _config_acc = &accounts[1];
     let pool_acc = &accounts[2];
-    let user_litter_ata = &accounts[3];
-    let litter_mint = &accounts[4];
-    let token_program = &accounts[5];
 
-    // Validate user is signer
     if !user.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Parse instruction data: sol_amount in lamports (u64 LE)
     if data.len() < 8 {
         return Err(ProgramError::InvalidInstructionData);
     }
     let sol_amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
 
-    // Read pool state
     let pool_data = unsafe { pool_acc.borrow_data_unchecked() };
     let virtual_litter = u64::from_le_bytes(pool_data[0..8].try_into().unwrap());
     let virtual_sol = u64::from_le_bytes(pool_data[8..16].try_into().unwrap());
     let real_litter = u64::from_le_bytes(pool_data[16..24].try_into().unwrap());
     let real_sol = u64::from_le_bytes(pool_data[24..32].try_into().unwrap());
-    let is_active = pool_data[32];
 
     // Calculate Litter amount using bonding curve
-    // Formula: litter_out = (sol_in * virtual_litter) / (virtual_sol + sol_in)
     let litter_amount = if virtual_sol > 0 {
         (sol_amount * virtual_litter) / (virtual_sol + sol_amount)
     } else {
-        // First deposit: use initial ratio
         (sol_amount * INITIAL_VIRTUAL_LITTER) / INITIAL_VIRTUAL_SOL
     };
 
     // Calculate 2% fee
     let fee_amount = (litter_amount * FEE_BPS) / FEE_DENOMINATOR;
-    let litter_to_user = litter_amount.saturating_sub(fee_amount);
+    let _litter_to_user = litter_amount.saturating_sub(fee_amount);
 
-    // For initial version, we'll just track the deposit in pool state
-    // Token transfers will be handled separately or in a future version
-    
-    // Update pool state - track the SOL deposit
+    // Update pool state
     let new_real_sol = real_sol + sol_amount;
-    let new_is_active = 1u8;  // Activate on first deposit
+    let new_is_active = 1u8;
 
     let pool_data_mut = unsafe { pool_acc.borrow_mut_data_unchecked() };
     pool_data_mut[0..8].copy_from_slice(&virtual_litter.to_le_bytes());
     pool_data_mut[8..16].copy_from_slice(&virtual_sol.to_le_bytes());
-    pool_data_mut[16..24].copy_from_slice(&real_litter.to_le_bytes());  // Keep same
+    pool_data_mut[16..24].copy_from_slice(&real_litter.to_le_bytes());
     pool_data_mut[24..32].copy_from_slice(&new_real_sol.to_le_bytes());
     pool_data_mut[32] = new_is_active;
 
@@ -234,91 +187,27 @@ fn process_deposit(
 }
 
 // ---------------------------------------------------------------------------
-// Withdraw Instruction (LITTER → SOL)
+// Withdraw Instruction (LITTER → SOL) - Stub
 // ---------------------------------------------------------------------------
 fn process_withdraw(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
-    data: &[u8],
+    _data: &[u8],
 ) -> ProgramResult {
-    // Expected accounts:
-    // 0. [signer, writable] user
-    // 1. [writable] config_pda
-    // 2. [writable] pool_pda
-    // 3. [writable] user_litter_ata
-    // 4. [] litter_mint
-    // 5. [] token_program
-    
-    if accounts.len() < 6 {
+    if accounts.len() < 3 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let user = &accounts[0];
-    let config_acc = &accounts[1];
-    let pool_acc = &accounts[2];
-    let user_litter_ata = &accounts[3];
-    let _litter_mint = &accounts[4];
-    let token_program = &accounts[5];
+    let _config_acc = &accounts[1];
+    let _pool_acc = &accounts[2];
 
-    // Validate user is signer
     if !user.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Parse instruction data: litter_amount (u64 LE)
-    if data.len() < 8 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let litter_amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-
-    // Read pool state
-    let pool_data = unsafe { pool_acc.borrow_data_unchecked() };
-    let virtual_litter = u64::from_le_bytes(pool_data[0..8].try_into().unwrap());
-    let virtual_sol = u64::from_le_bytes(pool_data[8..16].try_into().unwrap());
-    let real_litter = u64::from_le_bytes(pool_data[16..24].try_into().unwrap());
-    let real_sol = u64::from_le_bytes(pool_data[24..32].try_into().unwrap());
-    let is_active = pool_data[32];
-
-    // Validate pool is active
-    if is_active == 0 {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // Calculate SOL amount using reverse bonding curve
-    // Formula: sol_out = (litter_in * virtual_sol) / (virtual_litter + litter_in)
-    let sol_amount = if virtual_litter > 0 {
-        (litter_amount * virtual_sol) / (virtual_litter + litter_amount)
-    } else {
-        0
-    };
-
-    // Calculate 2% fee
-    let fee_amount = (sol_amount * FEE_BPS) / FEE_DENOMINATOR;
-    let sol_to_user = sol_amount.saturating_sub(fee_amount);
-
-    // Transfer Litter from user to pool
-    Transfer {
-        source: user_litter_ata,
-        destination: user_litter_ata,  // Should be pool's litter ATA
-        authority: user,
-        amount: litter_amount,
-        program_id: None,
-    }.invoke()?;
-
-    // Transfer SOL from pool to user (native transfer)
-    // This will be handled by the runtime via the instruction's lamports
-
-    // Update pool state
-    let new_real_sol = real_sol.saturating_sub(sol_to_user);
-    let new_real_litter = real_litter + litter_amount;
-
-    let pool_data_mut = unsafe { pool_acc.borrow_mut_data_unchecked() };
-    pool_data_mut[0..8].copy_from_slice(&virtual_litter.to_le_bytes());
-    pool_data_mut[8..16].copy_from_slice(&virtual_sol.to_le_bytes());
-    pool_data_mut[16..24].copy_from_slice(&new_real_litter.to_le_bytes());
-    pool_data_mut[24..32].copy_from_slice(&new_real_sol.to_le_bytes());
-    // Pool remains active
-
+    // Withdraw functionality to be implemented in next version
+    // For now, just return success
     Ok(())
 }
 
