@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Transaction } from '@solana/web3.js';
 import {
   createSwapInstruction,
   createWithdrawInstruction,
   findAssociatedTokenAddress,
   USDC_MINT,
   POOL_PDA,
-  TOKEN_PROGRAM_ID,
 } from '../utils/litterbox-client';
 
 export function SwapInterface() {
