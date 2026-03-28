@@ -9,8 +9,7 @@ const PROGRAM_ID = import.meta.env.VITE_PROGRAM_ID || 'CyuzmNggCxLyupt8JBdMdisRn
 const RPC_URL = import.meta.env.VITE_RPC_URL || 'https://api.devnet.solana.com';
 
 function AppContent() {
-  const { connected, publicKey } = useWallet();
-
+  // Wallet state available via context
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <div className="container mx-auto px-4 py-8">
