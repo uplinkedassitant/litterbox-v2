@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 
 const PROGRAM_ID = import.meta.env.VITE_PROGRAM_ID || 'AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG';
 const CONFIG_PDA = import.meta.env.VITE_CONFIG_PDA || 'GSyYSVVz9yrk6XSeF9zMi9GzvtUk47mKVhjKJVW4HTGZ';
@@ -33,8 +34,7 @@ export function SwapInterface() {
     
     // Convert amount to bytes (u64 little-endian)
     const amountBytes = new Uint8Array(8);
-    const amountArray = new Uint8Array([1]); // discriminator for swap
-    const data = new Uint8Array([...amountArray, ...amountBytes]);
+    const data = Buffer.from([1, ...amountBytes]); // discriminator 1 for swap
     
     const instruction = new TransactionInstruction({
       programId,
@@ -65,8 +65,7 @@ export function SwapInterface() {
 
     // Convert amount to bytes (u64 little-endian)
     const amountBytes = new Uint8Array(8);
-    const amountArray = new Uint8Array([2]); // discriminator for withdraw
-    const data = new Uint8Array([...amountArray, ...amountBytes]);
+    const data = Buffer.from([2, ...amountBytes]); // discriminator 2 for withdraw
     
     const instruction = new TransactionInstruction({
       programId,
