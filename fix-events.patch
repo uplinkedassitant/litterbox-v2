@@ -1,0 +1,20 @@
+--- a/programs/litterbox-v2/src/lib.rs
++++ b/programs/litterbox-v2/src/lib.rs
+@@ -143,13 +143,16 @@ pub fn initialize(ctx: Context<Initialize>, params: InitializeParams) -> Result<
+     pool.total_litter_distributed = 0;
+     pool.bump = 0;
+ 
+-    emit!(ProtocolInitialized {
++    // Box the event to avoid stack overflow
++    let event = Box::new(ProtocolInitialized {
+       authority: config.authority,
+       litter_mint: config.litter_mint,
+       graduation_threshold: config.graduation_threshold,
+       virtual_initial_usdc: params.virtual_initial_usdc,
+       virtual_initial_litter: params.virtual_initial_litter,
+-    });
++    });
++    emit!(*event);
+ 
+     Ok(())
+   }

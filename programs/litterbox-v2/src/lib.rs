@@ -4,7 +4,7 @@ use anchor_spl::{
     associated_token::AssociatedToken,
 };
 
-declare_id!("8LhTE9owPwbdJMHbE7Nwi9i2H66JsPHzjwWbKPgLUa7t");
+declare_id!("AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG");
 
 pub mod errors {
     use anchor_lang::prelude::*;
@@ -144,15 +144,15 @@ pub mod litterbox_v2 {
         pool.total_litter_distributed = 0;
         pool.bump = 0;
 
-        emit!(ProtocolInitialized {
-            authority: config.authority,
-            litter_mint: config.litter_mint,
-            graduation_threshold: config.graduation_threshold,
-            virtual_initial_usdc: params.virtual_initial_usdc,
-            virtual_initial_litter: params.virtual_initial_litter,
-        });
-
-        Ok(())
+    let event = Box::new(ProtocolInitialized {
+      authority: config.authority,
+      litter_mint: config.litter_mint,
+      graduation_threshold: config.graduation_threshold,
+      virtual_initial_usdc: params.virtual_initial_usdc,
+      virtual_initial_litter: params.virtual_initial_litter,
+    });
+    emit!(*event);
+    Ok(())
     }
 
     /// Deposit any SPL token
@@ -390,7 +390,7 @@ pub mod litterbox_v2 {
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(init, payer = authority, space = 8 + 177)]
+    #[account(init, payer = authority, space = 8 + 202)]
     pub config: Account<'info, state::Config>,
     #[account(init, payer = authority, space = 8 + 41)]
     pub virtual_pool: Account<'info, state::VirtualPool>,

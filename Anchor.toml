@@ -6,13 +6,13 @@ resolution = true
 skip_lint = false
 
 [programs.localnet]
-litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+litterbox_v2 = "AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG"
 
 [programs.devnet]
-litterbox_v2 = "8LhTE9owPwbdJMHbE7Nwi9i2H66JsPHzjwWbKPgLUa7t"
+litterbox_v2 = "AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG"
 
 [programs.mainnet]
-litterbox_v2 = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+litterbox_v2 = "AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG"
 
 [registry]
 url = "https://api.apr.dev"

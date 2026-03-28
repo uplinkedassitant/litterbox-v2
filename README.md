@@ -1,113 +1,55 @@
-# LitterBox v2.0 - Auto-LP Launchpad
+# LitterBox v2 🐱‍👤
 
-## Overview
-LitterBox v2 is a **zero-capital, self-sustaining launchpad** that accepts **any SPL token** and automatically creates real liquidity on Raydium.
+**Jupiter-Powered Bonding Curve Platform**
 
-### Key Features
-- ✅ **Virtual Pool First**: Starts with simulated liquidity, no upfront capital needed
-- ✅ **Any Token Deposits**: Accept USDC, SOL, BONK, memecoins - anything!
-- ✅ **Instant Distribution**: Users get $LITTER immediately from vault
-- ✅ **2% Platform Fee**: Automatically deducted from each deposit
-- ✅ **Auto-Graduation**: When $1,000 USDC accumulated, auto-creates real Raydium pool
-- ✅ **User Pays Gas**: Platform never fronts capital for swaps
+Turn any token (including memecoins) into $LITTER via a decentralized bonding curve.
 
-### Architecture
+## 🎯 Features
+
+- **Jupiter Integration**: Swap ANY token Jupiter supports
+- **Bonding Curve Pricing**: Fair, algorithmic pricing
+- **2% Platform Fee**: Sustainable revenue model
+- **Pre-Minted Supply**: 1B $LITTER tokens (no minting during swaps)
+- **Single Pool Model**: Simple, efficient liquidity
+
+## 📊 Tokenomics
+
+- **Total Supply**: 1,000,000,000 $LITTER
+- **Distribution**:
+  - 97% → Liquidity Pool (Bonding Curve)
+  - 3% → Reserves
+
+## 🏗️ Architecture
+
 ```
-User deposits ANY token
-       ↓
-Jupiter swaps to USDC (user pays fees)
-       ↓
-2% fee deducted, 98% to virtual pool
-       ↓
-Bonding curve calculates $LITTER amount
-       ↓
-$LITTER sent from Vault → User (instant)
-       ↓
-USDC accumulates in virtual pool
-       ↓
-Threshold reached ($1,000)
-       ↓
-AUTO-GRADUATE: Create real Raydium pool
-       ↓
-Continue with real liquidity
+User Token (via Jupiter) → USDC → Pool → $LITTER → User
+                              ↑
+                        2% Fee to Treasury
 ```
 
-## Getting Started
+## Program ID
 
-### Prerequisites
-- Anchor 0.30.1+
-- Solana CLI
-- Node.js + Yarn
-
-### Installation
-```bash
-cd litterbox-v2
-yarn install
-anchor build
-```
-
-### Deploy to Devnet
-```bash
-anchor deploy --provider.cluster devnet
-```
-
-### Initialize Protocol
-```bash
-# Create $LITTER token first (1B supply)
-# Transfer 99% to vault PDA
-
-anchor run initialize \
-  --graduation-threshold 1000000000 \
-  --virtual-initial-usdc 1000000000 \
-  --virtual-initial-litter 1000000000000
-```
-
-## Configuration
-
-### Constants
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| TOTAL_SUPPLY | 1,000,000,000 | 1 Billion $LITTER |
-| VAULT_ALLOCATION | 99% | Percentage in program vault |
-| VIRTUAL_INITIAL_USDC | 1,000 | Initial virtual depth |
-| VIRTUAL_INITIAL_LITTER | 1,000,000,000 | All supply virtual |
-| GRADUATION_THRESHOLD | 1,000 USDC | When to create real pool |
-| PLATFORM_FEE | 2% | Fee on deposits |
-| MIN_DEPOSIT | $1.00 | Anti-spam minimum |
-
-### Bonding Curve Formula
-```
-litter_out = (virtual_litter_reserve * value_in) / (virtual_usdc_reserve + value_in)
-```
+**Devnet**: `CyuzmNggCxLyupt8JBdMdisRn5yo1eUfBPne9BqTnt85`
 
 ## Instructions
 
-### 1. `initialize`
-Sets up Config and VirtualPool accounts.
+1. **Initialize**: Create Config, Pool, and mint 1B $LITTER
+2. **Swap**: Deposit any token → Receive $LITTER
+3. **Withdraw**: Burn $LITTER → Receive any token
 
-### 2. `deposit_any_token`
-Main entry point. Accepts any SPL token, swaps to USDC, distributes $LITTER.
+## Development
 
-### 3. `graduate_to_real`
-Manual override for graduation (admin only).
-
-### 4. `sweep_and_swap`
-Converts accumulated dust tokens to USDC (permissionless).
-
-## Testing
 ```bash
-anchor test
+# Build
+cd program
+cargo build-sbf
+
+# Deploy
+solana program deploy target/deploy/litterbox_v2.so \
+  --url devnet \
+  --keypair ~/.config/solana/id_litterbox_v2.json
 ```
 
-## Deployment Checklist
-- [ ] Create $LITTER SPL token (1B supply)
-- [ ] Mint 100% to admin wallet
-- [ ] Deploy program
-- [ ] Initialize protocol
-- [ ] Transfer 99% of supply to vault PDA
-- [ ] Verify virtual pool state
-- [ ] Test deposit with small amount
-- [ ] Monitor graduation progress
-
 ## License
-Apache 2.0
+
+MIT
