@@ -93,17 +93,31 @@ export function SwapInterface() {
       transaction.feePayer = publicKey;
 
       // Try to simulate first to get better error
+      console.log('Simulating transaction...');
       try {
-        await connection.simulateTransaction(transaction);
+        const simulation = await connection.simulateTransaction(transaction);
+        console.log('Simulation result:', simulation);
+        if (simulation.value.logs) {
+          console.log('Program logs:', simulation.value.logs);
+        }
+        if (simulation.value.err) {
+          console.error('Simulation error:', simulation.value.err);
+          throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
+        }
       } catch (simError: any) {
         console.error('Simulation error:', simError);
         if (simError.logs) {
           console.log('Simulation logs:', simError.logs);
         }
+        if (simError.cause) {
+          console.error('Error cause:', simError.cause);
+        }
         throw simError;
       }
 
+      console.log('Sending transaction...');
       const signature = await sendTransaction(transaction, connection);
+      console.log('Transaction sent:', signature);
       setTxSignature(signature);
       setShowPreview(false);
       setAmount('');
