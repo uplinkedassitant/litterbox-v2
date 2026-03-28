@@ -16,7 +16,7 @@ export function SwapInterface() {
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
 
-  const handleDeposit = async (amount: number) => {
+  const handleDeposit = async (_amount: number) => {
     if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
 
     const programId = new PublicKey(PROGRAM_ID);
@@ -51,7 +51,7 @@ export function SwapInterface() {
     return signature;
   };
 
-  const handleWithdraw = async (amount: number) => {
+  const handleWithdraw = async (_amount: number) => {
     if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
 
     const programId = new PublicKey(PROGRAM_ID);
