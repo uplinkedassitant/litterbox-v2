@@ -75,7 +75,20 @@ export function SwapInterface() {
       setAmount('');
     } catch (err: any) {
       console.error('Swap error:', err);
-      setError(err.message || 'Transaction failed');
+      // Extract meaningful error from Solana error
+      let errorMessage = err.message || 'Transaction failed';
+      if (err.logs) {
+        console.log('Program logs:', err.logs);
+        // Look for program error in logs
+        const programError = err.logs.find((log: string) => log.includes('Error') || log.includes('failed'));
+        if (programError) {
+          errorMessage = `Program error: ${programError}`;
+        }
+      }
+      if (err.cause) {
+        console.error('Error cause:', err.cause);
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
