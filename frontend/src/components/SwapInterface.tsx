@@ -3,7 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID || 'GZMVhkNjd28Jsj8iUuMKfSg1mPdGuXCeUE3khgxxF7DM'
@@ -80,27 +80,15 @@ export function SwapInterface() {
       const amountNum = parseFloat(amount);
       const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
       
-      // Get/create token accounts
-      // User's ATA - normal account
-      const userLitterAta = await getOrCreateAssociatedTokenAccount(
-        connection,
-        publicKey, // payer
-        LITTER_MINT,
-        publicKey, // owner
-        false,     // allowOwnerOffCurve
-        undefined, // commitment
-        undefined  // confirmOptions
+      // Get token account addresses
+      const [userLitterAta] = await PublicKey.findProgramAddressSync(
+        [publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), LITTER_MINT.toBuffer()],
+        new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
       );
       
-      // Pool's ATA - PDA account (off-curve, needs special handling)
-      const poolLitterAta = await getOrCreateAssociatedTokenAccount(
-        connection,
-        publicKey, // payer
-        LITTER_MINT,
-        POOL_PDA,  // owner is the pool PDA
-        true,      // allowOwnerOffCurve = true for PDAs
-        undefined, // commitment
-        undefined  // confirmOptions
+      const [poolLitterAta] = await PublicKey.findProgramAddressSync(
+        [POOL_PDA.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), LITTER_MINT.toBuffer()],
+        new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
       );
       
       // Create instruction data
@@ -115,8 +103,8 @@ export function SwapInterface() {
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
-          { pubkey: userLitterAta.address, isSigner: false, isWritable: true },
-          { pubkey: poolLitterAta.address, isSigner: false, isWritable: true },
+          { pubkey: userLitterAta, isSigner: false, isWritable: true },
+          { pubkey: poolLitterAta, isSigner: false, isWritable: true },
           { pubkey: LITTER_MINT, isSigner: false, isWritable: false },
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
