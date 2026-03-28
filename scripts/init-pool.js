@@ -1,9 +1,13 @@
 /**
  * Initialize LitterBox v2 Pool
- * Creates $LITTER mint and initializes the program
+ * 
+ * This script:
+ * 1. Creates $LITTER mint
+ * 2. Calls initialize instruction
+ * 3. Verifies setup
  */
 
-import {
+const {
   Connection,
   Keypair,
   PublicKey,
@@ -12,16 +16,16 @@ import {
   SystemProgram,
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
-} from '@solana/web3.js';
-import {
+} = require('@solana/web3.js');
+const {
   createInitializeMintInstruction,
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
   getMinimumBalanceForRentExemptMint,
-} from '@solana/spl-token';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+} = require('@solana/spl-token');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 // Configuration
 const PROGRAM_ID = new PublicKey('AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG');
@@ -139,7 +143,6 @@ async function main() {
       { pubkey: configPda, isSigner: false, isWritable: true },
       { pubkey: poolPda, isSigner: false, isWritable: true },
       { pubkey: litterMint.publicKey, isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     data: Buffer.from([0]), // Discriminator for initialize
   });

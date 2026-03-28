@@ -81,7 +81,7 @@ fn process_initialize(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
-    if accounts.len() < 4 {
+    if accounts.len() < 5 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -89,6 +89,7 @@ fn process_initialize(
     let config_acc = &accounts[1];
     let pool_acc = &accounts[2];
     let litter_mint_acc = &accounts[3];
+    let _system_program = &accounts[4];
 
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
@@ -115,7 +116,7 @@ fn process_initialize(
         CreateAccount {
             from: authority,
             to: config_acc,
-            lamports: 1_000_000u64,
+            lamports: 100_000_000u64,
             space: 76u64,
             owner: program_id,
         }.invoke_signed(&[signer]).ok();
@@ -130,7 +131,7 @@ fn process_initialize(
         CreateAccount {
             from: authority,
             to: pool_acc,
-            lamports: 1_000_000u64,
+            lamports: 100_000_000u64,
             space: 40u64,
             owner: program_id,
         }.invoke_signed(&[signer]).ok();

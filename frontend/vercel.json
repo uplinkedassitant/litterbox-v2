@@ -1,0 +1,25 @@
+{
+  "framework": "vite",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "devCommand": "npm run dev",
+  "env": {
+    "VITE_PROGRAM_ID": "CyuzmNggCxLyupt8JBdMdisRn5yo1eUfBPne9BqTnt85",
+    "VITE_CONFIG_PDA": "7bibs5dbBwaUuWCc3yjSH6nu649WmQ7ifVicU4MZ6Ueu",
+    "VITE_POOL_PDA": "7DgLSphFDzXA29ausgLpeydKzuW3b42HXrLppZb527MQ",
+    "VITE_RPC_URL": "https://api.devnet.solana.com",
+    "VITE_NETWORK": "devnet"
+  },
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
+}
