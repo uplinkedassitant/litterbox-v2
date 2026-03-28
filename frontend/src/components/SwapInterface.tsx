@@ -79,7 +79,6 @@ export function SwapInterface() {
     try {
       const amountNum = parseFloat(amount);
       const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
-      const litterAmount = Math.floor(amountNum * 1_000_000_000_000); // 12 decimals
       
       // Get token accounts
       const userLitterAta = await getAssociatedTokenAddress(publicKey, LITTER_MINT);
