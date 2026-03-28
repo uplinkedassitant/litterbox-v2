@@ -264,10 +264,97 @@ fn process_swap(
 
 fn process_withdraw(
     _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _data: &[u8],
+    accounts: &[AccountInfo],
+    data: &[u8],
 ) -> ProgramResult {
-    // TODO: Implement withdraw logic
+    // Expected accounts:
+    // 0. [signer, writable] user
+    // 1. [writable] config_pda
+    // 2. [writable] pool_pda
+    // 3. [writable] user_usdc_ata
+    // 4. [writable] pool_usdc_ata
+    // 5. [writable] user_litter_ata
+    // 6. [] litter_mint
+    // 7. [] token_program
+
+    if accounts.len() < 8 {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    let user = &accounts[0];
+    let config_acc = &accounts[1];
+    let pool_acc = &accounts[2];
+    let user_usdc_ata = &accounts[3];
+    let pool_usdc_ata = &accounts[4];
+    let user_litter_ata = &accounts[5];
+    let _litter_mint = &accounts[6];
+    let token_program = &accounts[7];
+
+    // Validate user is signer
+    if !user.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Parse instruction data: litter_amount (u64 LE)
+    if data.len() < 8 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let litter_amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
+
+    // Read pool state
+    let pool_data = unsafe { pool_acc.borrow_data_unchecked() };
+    let virtual_litter = u64::from_le_bytes(pool_data[0..8].try_into().unwrap());
+    let virtual_usdc = u64::from_le_bytes(pool_data[8..16].try_into().unwrap());
+    let real_litter = u64::from_le_bytes(pool_data[16..24].try_into().unwrap());
+    let real_usdc = u64::from_le_bytes(pool_data[24..32].try_into().unwrap());
+    let is_active = pool_data[32];
+
+    // Validate pool is active
+    if is_active == 0 {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Calculate USDC amount using reverse bonding curve
+    // Formula: usdc_out = (litter_in * virtual_usdc) / (virtual_litter + litter_in)
+    let usdc_amount = if virtual_litter > 0 {
+        (litter_amount * virtual_usdc) / (virtual_litter + litter_amount)
+    } else {
+        0
+    };
+
+    // Calculate 2% fee
+    let fee_amount = (usdc_amount * FEE_BPS) / FEE_DENOMINATOR;
+    let usdc_to_user = usdc_amount.saturating_sub(fee_amount);
+
+    // Transfer Litter from user to pool
+    Transfer {
+        source: user_litter_ata,
+        destination: pool_usdc_ata, // Pool's litter ATA (should be separate, but using same for now)
+        authority: user,
+        amount: litter_amount,
+        program_id: None,
+    }.invoke()?;
+
+    // Transfer USDC from pool to user
+    Transfer {
+        source: pool_usdc_ata,
+        destination: user_usdc_ata,
+        authority: config_acc, // Pool authority
+        amount: usdc_to_user,
+        program_id: None,
+    }.invoke()?;
+
+    // Update pool state
+    let new_real_usdc = real_usdc.saturating_sub(usdc_to_user);
+    let new_real_litter = real_litter.saturating_add(litter_amount);
+    
+    let pool_data_mut = unsafe { pool_acc.borrow_mut_data_unchecked() };
+    pool_data_mut[0..8].copy_from_slice(&virtual_litter.to_le_bytes());
+    pool_data_mut[8..16].copy_from_slice(&virtual_usdc.to_le_bytes());
+    pool_data_mut[16..24].copy_from_slice(&new_real_litter.to_le_bytes());
+    pool_data_mut[24..32].copy_from_slice(&new_real_usdc.to_le_bytes());
+    // Pool remains active
+
     Ok(())
 }
 
