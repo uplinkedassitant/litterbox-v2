@@ -80,33 +80,18 @@ export function SwapInterface() {
       const amountNum = parseFloat(amount);
       const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
       
-      // Get token account addresses
-      const [userLitterAta] = await PublicKey.findProgramAddressSync(
-        [publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), LITTER_MINT.toBuffer()],
-        new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
-      );
-      
-      const [poolLitterAta] = await PublicKey.findProgramAddressSync(
-        [POOL_PDA.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), LITTER_MINT.toBuffer()],
-        new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
-      );
-      
       // Create instruction data
       const data = Buffer.alloc(9);
       data[0] = mode === 'deposit' ? 1 : 2; // 1 for deposit, 2 for withdraw
       data.writeBigUInt64LE(BigInt(lamports), 1);
 
-      // Create instruction with all required accounts
+      // Create instruction with 3 accounts only (no token transfers yet)
       const instruction = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
-          { pubkey: userLitterAta, isSigner: false, isWritable: true },
-          { pubkey: poolLitterAta, isSigner: false, isWritable: true },
-          { pubkey: LITTER_MINT, isSigner: false, isWritable: false },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
         data: data,
       });
