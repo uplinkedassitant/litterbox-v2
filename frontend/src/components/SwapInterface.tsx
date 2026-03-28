@@ -90,9 +90,6 @@ export function SwapInterface() {
       const amountNum = parseFloat(amount);
       const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
       
-      // Get or create token accounts
-      const userLitterAta = await findAssociatedTokenAddress(publicKey, POOL_PDA);
-      
       // Create instruction data
       const data = Buffer.alloc(9);
       data[0] = mode === 'deposit' ? 1 : 2; // 1 for deposit, 2 for withdraw
