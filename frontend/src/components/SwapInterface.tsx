@@ -19,12 +19,6 @@ const TOKEN_OPTIONS = [
 // Slippage options
 const SLIPPAGE_OPTIONS = [0.5, 1.0, 2.0, 5.0];
 
-interface TokenBalance {
-  symbol: string;
-  balance: number;
-  usdValue?: number;
-}
-
 export function SwapInterface() {
   const { connected, publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
