@@ -1,8 +1,6 @@
 import { FC, useMemo } from 'react';
-import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-adapter-react';
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { clusterApiUrl } from '@solana/web3.js';
 import { SwapInterface } from './components/SwapInterface';
 import { PoolStats } from './components/PoolStats';
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -46,7 +44,7 @@ function AppContent() {
         <footer className="mt-12 text-center text-purple-300">
           <p>Program: {PROGRAM_ID}</p>
           <p className="text-sm mt-2">
-            Turn your memecoins into $LITTER • Powered by Jupiter
+            Turn any token into $LITTER • Powered by Jupiter
           </p>
         </footer>
       </div>

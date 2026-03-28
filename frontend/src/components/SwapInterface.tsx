@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useConnection } from '@solana/wallet-adapter-react';
 
 export function SwapInterface() {
-  const { connected, publicKey, sendTransaction } = useWallet();
-  const { connection } = useConnection();
+  const { connected, publicKey } = useWallet();
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
