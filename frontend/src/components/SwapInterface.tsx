@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
@@ -14,7 +14,6 @@ const CONFIG_PDA = new PublicKey(
 const POOL_PDA = new PublicKey(
   import.meta.env.VITE_POOL_PDA || 'H3LwN5cS6zyX3iU8PwnDMXh4RbFAmwBKGkg81UzGuwFt'
 );
-const USDC_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
 
 // Helper to find associated token address
 async function findAssociatedTokenAddress(walletAddress: PublicKey, tokenMint: PublicKey) {
@@ -40,12 +39,19 @@ export function SwapInterface() {
   const [showPreview, setShowPreview] = useState(false);
   const [slippage] = useState(1.0);
   const [poolExists, setPoolExists] = useState<boolean | null>(null);
+  const [poolData, setPoolData] = useState<{ virtualLitter: number; virtualSol: number; isActive: boolean } | null>(null);
 
   // Check if pool exists
   useEffect(() => {
     const checkPool = async () => {
       try {
         const info = await connection.getAccountInfo(POOL_PDA);
+        if (info && info.data.length === 40) {
+          const virtualLitter = info.data.readBigUInt64LE(0) / 1e12;
+          const virtualSol = info.data.readBigUInt64LE(8) / 1e9;
+          const isActive = info.data[32] === 1;
+          setPoolData({ virtualLitter, virtualSol, isActive });
+        }
         setPoolExists(!!info);
       } catch (err) {
         console.error('Error checking pool:', err);
@@ -82,16 +88,15 @@ export function SwapInterface() {
 
     try {
       const amountNum = parseFloat(amount);
+      const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
       
       // Get or create token accounts
-      const userUsdcAta = await findAssociatedTokenAddress(publicKey, USDC_MINT);
-      const poolUsdcAta = await findAssociatedTokenAddress(POOL_PDA, USDC_MINT);
       const userLitterAta = await findAssociatedTokenAddress(publicKey, POOL_PDA);
       
       // Create instruction data
       const data = Buffer.alloc(9);
-      data[0] = mode === 'deposit' ? 1 : 2; // 1 for swap, 2 for withdraw
-      data.writeBigUInt64LE(BigInt(Math.floor(amountNum * 1_000_000)), 1);
+      data[0] = mode === 'deposit' ? 1 : 2; // 1 for deposit, 2 for withdraw
+      data.writeBigUInt64LE(BigInt(lamports), 1);
 
       // Create instruction with ALL required accounts
       const instruction = new TransactionInstruction({
@@ -100,8 +105,6 @@ export function SwapInterface() {
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
-          { pubkey: userUsdcAta, isSigner: false, isWritable: true },
-          { pubkey: poolUsdcAta, isSigner: false, isWritable: true },
           { pubkey: userLitterAta, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: false }, // litter_mint (using pool as placeholder)
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
@@ -110,6 +113,25 @@ export function SwapInterface() {
       });
 
       const transaction = new Transaction().add(instruction);
+      
+      // Add SOL transfer for deposit
+      if (mode === 'deposit') {
+        transaction.add(
+          new TransactionInstruction({
+            programId: new PublicKey('11111111111111111111111111111111'),
+            keys: [
+              { pubkey: publicKey, isSigner: true, isWritable: true },
+              { pubkey: POOL_PDA, isSigner: false, isWritable: true },
+            ],
+            data: Buffer.from([
+              2, // Transfer instruction
+              ...new Uint8Array(8), // padding
+              ...BigInt(lamports).toString(2).padStart(64, '0').split('').reverse().map(b => parseInt(b)).reduce((acc, b, i) => acc + b * Math.pow(2, i), 0).toString(16).match(/.{1,2}/g)!.reverse().map(b => parseInt(b, 16)),
+            ].slice(0, 9)),
+          })
+        );
+      }
+
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
@@ -201,12 +223,12 @@ export function SwapInterface() {
             <div className="space-y-4 mb-6">
               <div className="bg-white/5 p-4 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">You pay</div>
-                <div className="text-2xl font-bold text-white">{amount} USDC</div>
+                <div className="text-2xl font-bold text-white">{amount} {mode === 'deposit' ? 'SOL' : '$LITTER'}</div>
               </div>
               <div className="text-center text-gray-400">↓</div>
               <div className="bg-white/5 p-4 rounded-lg">
                 <div className="text-sm text-gray-400 mb-1">You receive</div>
-                <div className="text-2xl font-bold text-white">{estimatedOutput} $LITTER</div>
+                <div className="text-2xl font-bold text-white">{estimatedOutput} {mode === 'deposit' ? '$LITTER' : 'SOL'}</div>
               </div>
               <div className="bg-white/5 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between text-sm">
@@ -237,7 +259,7 @@ export function SwapInterface() {
       )}
 
       <h2 className="text-2xl font-bold text-white mb-4">
-        {mode === 'deposit' ? '💰 Deposit' : '💸 Withdraw'}
+        {mode === 'deposit' ? '💰 Deposit SOL' : '💸 Withdraw SOL'}
       </h2>
 
       <div className="mb-4 p-3 bg-white/10 rounded-lg">
@@ -335,7 +357,7 @@ export function SwapInterface() {
         <div className="mt-4 p-3 bg-white/5 rounded-lg text-sm space-y-2">
           <div className="flex justify-between text-purple-200">
             <span>Estimated Output</span>
-            <span className="text-white font-semibold">{estimatedOutput} $LITTER</span>
+            <span className="text-white font-semibold">{estimatedOutput} {mode === 'deposit' ? '$LITTER' : 'SOL'}</span>
           </div>
           <div className="flex justify-between text-purple-200">
             <span>Price Impact</span>
@@ -348,7 +370,7 @@ export function SwapInterface() {
 
       <div className="mt-4 text-sm text-purple-300">
         <p>• Platform fee: 2%</p>
-        <p>• Powered by Jupiter</p>
+        <p>• Powered by Solana</p>
         <p>• Bonding curve pricing</p>
       </div>
     </div>
