@@ -6,13 +6,13 @@ import { Buffer } from 'buffer';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const PROGRAM_ID = new PublicKey(
-  import.meta.env.VITE_PROGRAM_ID || 'AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG'
+  import.meta.env.VITE_PROGRAM_ID || 'GZMVhkNjd28Jsj8iUuMKfSg1mPdGuXCeUE3khgxxF7DM'
 );
 const CONFIG_PDA = new PublicKey(
-  import.meta.env.VITE_CONFIG_PDA || 'GSyYSVVz9yrk6XSeF9zMi9GzvtUk47mKVhjKJVW4HTGZ'
+  import.meta.env.VITE_CONFIG_PDA || '61hXQB5wGsfwiMWezrHMe99iyiiiV2Qh5W9VRZnftq1W'
 );
 const POOL_PDA = new PublicKey(
-  import.meta.env.VITE_POOL_PDA || 'H3LwN5cS6zyX3iU8PwnDMXh4RbFAmwBKGkg81UzGuwFt'
+  import.meta.env.VITE_POOL_PDA || 'HY1dgL4aD7pmvq5WhZUgF3zTLNemsR6FqzaLnA3TEb6g'
 );
 
 // Helper to find associated token address
@@ -39,7 +39,7 @@ export function SwapInterface() {
   const [showPreview, setShowPreview] = useState(false);
   const [slippage] = useState(1.0);
   const [poolExists, setPoolExists] = useState<boolean | null>(null);
-  const [poolData, setPoolData] = useState<{ virtualLitter: number; virtualSol: number; isActive: boolean } | null>(null);
+  const [_poolData, setPoolData] = useState<{ virtualLitter: number; virtualSol: number; isActive: boolean } | null>(null);
 
   // Check if pool exists
   useEffect(() => {
@@ -47,8 +47,8 @@ export function SwapInterface() {
       try {
         const info = await connection.getAccountInfo(POOL_PDA);
         if (info && info.data.length === 40) {
-          const virtualLitter = info.data.readBigUInt64LE(0) / 1e12;
-          const virtualSol = info.data.readBigUInt64LE(8) / 1e9;
+          const virtualLitter = Number(info.data.readBigUInt64LE(0)) / 1e12;
+          const virtualSol = Number(info.data.readBigUInt64LE(8)) / 1e9;
           const isActive = info.data[32] === 1;
           setPoolData({ virtualLitter, virtualSol, isActive });
         }
