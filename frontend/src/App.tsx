@@ -1,5 +1,5 @@
 import { FC, useMemo } from 'react';
-import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-adapter-react';
+import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { SwapInterface } from './components/SwapInterface';
 import { PoolStats } from './components/PoolStats';
