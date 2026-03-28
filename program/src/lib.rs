@@ -9,6 +9,7 @@ use pinocchio::{
 };
 use pinocchio_pubkey::declare_id;
 use pinocchio_system::instructions::CreateAccount;
+use pinocchio_tkn::common::Transfer;
 
 // ---------------------------------------------------------------------------
 // Program ID
@@ -134,17 +135,30 @@ fn process_initialize(
 // Deposit Instruction (SOL → LITTER)
 // ---------------------------------------------------------------------------
 fn process_deposit(
-    _program_id: &Pubkey,
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    if accounts.len() < 3 {
+    // Expected accounts:
+    // 0. [signer, writable] user
+    // 1. [writable] config_pda
+    // 2. [writable] pool_pda
+    // 3. [writable] user_litter_ata
+    // 4. [writable] pool_litter_ata
+    // 5. [] litter_mint
+    // 6. [] token_program
+    
+    if accounts.len() < 7 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let user = &accounts[0];
-    let _config_acc = &accounts[1];
+    let config_acc = &accounts[1];
     let pool_acc = &accounts[2];
+    let user_litter_ata = &accounts[3];
+    let pool_litter_ata = &accounts[4];
+    let litter_mint = &accounts[5];
+    let token_program = &accounts[6];
 
     if !user.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
@@ -170,16 +184,28 @@ fn process_deposit(
 
     // Calculate 2% fee
     let fee_amount = (litter_amount * FEE_BPS) / FEE_DENOMINATOR;
-    let _litter_to_user = litter_amount.saturating_sub(fee_amount);
+    let litter_to_user = litter_amount.saturating_sub(fee_amount);
+
+    // Transfer Litter tokens from pool to user
+    if litter_to_user > 0 {
+        Transfer {
+            source: pool_litter_ata,
+            destination: user_litter_ata,
+            authority: config_acc,
+            amount: litter_to_user,
+            program_id: None,
+        }.invoke()?;
+    }
 
     // Update pool state
     let new_real_sol = real_sol + sol_amount;
+    let new_real_litter = real_litter.saturating_sub(litter_to_user);
     let new_is_active = 1u8;
 
     let pool_data_mut = unsafe { pool_acc.borrow_mut_data_unchecked() };
     pool_data_mut[0..8].copy_from_slice(&virtual_litter.to_le_bytes());
     pool_data_mut[8..16].copy_from_slice(&virtual_sol.to_le_bytes());
-    pool_data_mut[16..24].copy_from_slice(&real_litter.to_le_bytes());
+    pool_data_mut[16..24].copy_from_slice(&new_real_litter.to_le_bytes());
     pool_data_mut[24..32].copy_from_slice(&new_real_sol.to_le_bytes());
     pool_data_mut[32] = new_is_active;
 
@@ -187,27 +213,84 @@ fn process_deposit(
 }
 
 // ---------------------------------------------------------------------------
-// Withdraw Instruction (LITTER → SOL) - Stub
+// Withdraw Instruction (LITTER → SOL)
 // ---------------------------------------------------------------------------
 fn process_withdraw(
-    _program_id: &Pubkey,
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
-    _data: &[u8],
+    data: &[u8],
 ) -> ProgramResult {
-    if accounts.len() < 3 {
+    // Expected accounts:
+    // 0. [signer, writable] user
+    // 1. [writable] config_pda
+    // 2. [writable] pool_pda
+    // 3. [writable] user_litter_ata
+    // 4. [writable] pool_litter_ata
+    // 5. [] litter_mint
+    // 6. [] token_program
+    
+    if accounts.len() < 7 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let user = &accounts[0];
-    let _config_acc = &accounts[1];
-    let _pool_acc = &accounts[2];
+    let config_acc = &accounts[1];
+    let pool_acc = &accounts[2];
+    let user_litter_ata = &accounts[3];
+    let pool_litter_ata = &accounts[4];
+    let _litter_mint = &accounts[5];
+    let _token_program = &accounts[6];
 
     if !user.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Withdraw functionality to be implemented in next version
-    // For now, just return success
+    if data.len() < 8 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let litter_amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
+
+    let pool_data = unsafe { pool_acc.borrow_data_unchecked() };
+    let virtual_litter = u64::from_le_bytes(pool_data[0..8].try_into().unwrap());
+    let virtual_sol = u64::from_le_bytes(pool_data[8..16].try_into().unwrap());
+    let real_litter = u64::from_le_bytes(pool_data[16..24].try_into().unwrap());
+    let real_sol = u64::from_le_bytes(pool_data[24..32].try_into().unwrap());
+    let is_active = pool_data[32];
+
+    if is_active == 0 {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Calculate SOL amount using reverse bonding curve
+    let sol_amount = if virtual_litter > 0 {
+        (litter_amount * virtual_sol) / (virtual_litter + litter_amount)
+    } else {
+        0
+    };
+
+    // Calculate 2% fee
+    let fee_amount = (sol_amount * FEE_BPS) / FEE_DENOMINATOR;
+    let sol_to_user = sol_amount.saturating_sub(fee_amount);
+
+    // Transfer Litter tokens from user to pool
+    Transfer {
+        source: user_litter_ata,
+        destination: pool_litter_ata,
+        authority: user,
+        amount: litter_amount,
+        program_id: None,
+    }.invoke()?;
+
+    // Update pool state
+    let new_real_sol = real_sol.saturating_sub(sol_to_user);
+    let new_real_litter = real_litter + litter_amount;
+
+    let pool_data_mut = unsafe { pool_acc.borrow_mut_data_unchecked() };
+    pool_data_mut[0..8].copy_from_slice(&virtual_litter.to_le_bytes());
+    pool_data_mut[8..16].copy_from_slice(&virtual_sol.to_le_bytes());
+    pool_data_mut[16..24].copy_from_slice(&new_real_litter.to_le_bytes());
+    pool_data_mut[24..32].copy_from_slice(&new_real_sol.to_le_bytes());
+
     Ok(())
 }
 

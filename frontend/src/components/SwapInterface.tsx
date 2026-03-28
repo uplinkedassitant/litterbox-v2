@@ -3,6 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 
 const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID || 'GZMVhkNjd28Jsj8iUuMKfSg1mPdGuXCeUE3khgxxF7DM'
@@ -12,6 +13,9 @@ const CONFIG_PDA = new PublicKey(
 );
 const POOL_PDA = new PublicKey(
   import.meta.env.VITE_POOL_PDA || 'HY1dgL4aD7pmvq5WhZUgF3zTLNemsR6FqzaLnA3TEb6g'
+);
+const LITTER_MINT = new PublicKey(
+  import.meta.env.VITE_LITTER_MINT || 'DidDtGhw2vvHaR3KViTjjRypFnuUydCovB8Q2WSz4KC'
 );
 
 export function SwapInterface() {
@@ -75,20 +79,28 @@ export function SwapInterface() {
     try {
       const amountNum = parseFloat(amount);
       const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
+      const litterAmount = Math.floor(amountNum * 1_000_000_000_000); // 12 decimals
+      
+      // Get token accounts
+      const userLitterAta = await getAssociatedTokenAddress(publicKey, LITTER_MINT);
+      const poolLitterAta = await getAssociatedTokenAddress(POOL_PDA, LITTER_MINT);
       
       // Create instruction data
       const data = Buffer.alloc(9);
       data[0] = mode === 'deposit' ? 1 : 2; // 1 for deposit, 2 for withdraw
       data.writeBigUInt64LE(BigInt(lamports), 1);
 
-      // Create instruction with simplified accounts (no token program for now)
+      // Create instruction with all required accounts
       const instruction = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
-          // Skip token accounts for initial version - just track SOL deposit
+          { pubkey: userLitterAta, isSigner: false, isWritable: true },
+          { pubkey: poolLitterAta, isSigner: false, isWritable: true },
+          { pubkey: LITTER_MINT, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
         data: data,
       });
