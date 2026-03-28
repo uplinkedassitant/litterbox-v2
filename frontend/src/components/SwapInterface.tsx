@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
-import * as anchor from '@coral-xyz/anchor';
 
 const PROGRAM_ID = import.meta.env.VITE_PROGRAM_ID || 'AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG';
 const CONFIG_PDA = import.meta.env.VITE_CONFIG_PDA || 'GSyYSVVz9yrk6XSeF9zMi9GzvtUk47mKVhjKJVW4HTGZ';
@@ -17,7 +16,7 @@ export function SwapInterface() {
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
 
-  const handleDeposit = async (usdcAmount: number) => {
+  const handleDeposit = async (amount: number) => {
     if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
 
     const programId = new PublicKey(PROGRAM_ID);
@@ -52,7 +51,7 @@ export function SwapInterface() {
     return signature;
   };
 
-  const handleWithdraw = async (litterAmount: number) => {
+  const handleWithdraw = async (amount: number) => {
     if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
 
     const programId = new PublicKey(PROGRAM_ID);
