@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { Transaction } from '@solana/web3.js';
 import {
   createSwapInstruction,
   createWithdrawInstruction,
@@ -10,7 +11,7 @@ import {
 } from '../utils/litterbox-client';
 
 export function SwapInterface() {
-  const { connected, publicKey, signTransaction, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
