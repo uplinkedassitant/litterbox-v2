@@ -3,7 +3,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 
 const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID || 'GZMVhkNjd28Jsj8iUuMKfSg1mPdGuXCeUE3khgxxF7DM'
@@ -84,18 +84,23 @@ export function SwapInterface() {
       // User's ATA - normal account
       const userLitterAta = await getOrCreateAssociatedTokenAccount(
         connection,
-        publicKey,
+        publicKey, // payer
         LITTER_MINT,
-        publicKey
+        publicKey, // owner
+        false,     // allowOwnerOffCurve
+        undefined, // commitment
+        undefined  // confirmOptions
       );
       
       // Pool's ATA - PDA account (off-curve, needs special handling)
       const poolLitterAta = await getOrCreateAssociatedTokenAccount(
         connection,
-        publicKey, // User pays for creation
+        publicKey, // payer
         LITTER_MINT,
-        POOL_PDA,  // Owner is the pool PDA
-        true       // allowOwnerOffCurve = true for PDAs
+        POOL_PDA,  // owner is the pool PDA
+        true,      // allowOwnerOffCurve = true for PDAs
+        undefined, // commitment
+        undefined  // confirmOptions
       );
       
       // Create instruction data
