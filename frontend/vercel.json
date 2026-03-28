@@ -5,6 +5,11 @@
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "regions": ["iad1"],
+  "build": {
+    "env": {
+      "FORCE_BUILD": "true"
+    }
+  },
   "env": {
     "VITE_PROGRAM_ID": "AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG",
     "VITE_CONFIG_PDA": "GSyYSVVz9yrk6XSeF9zMi9GzvtUk47mKVhjKJVW4HTGZ",
