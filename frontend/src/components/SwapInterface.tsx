@@ -1,9 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
+import { Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID || 'GZMVhkNjd28Jsj8iUuMKfSg1mPdGuXCeUE3khgxxF7DM'
@@ -14,19 +13,6 @@ const CONFIG_PDA = new PublicKey(
 const POOL_PDA = new PublicKey(
   import.meta.env.VITE_POOL_PDA || 'HY1dgL4aD7pmvq5WhZUgF3zTLNemsR6FqzaLnA3TEb6g'
 );
-
-// Helper to find associated token address
-async function findAssociatedTokenAddress(walletAddress: PublicKey, tokenMint: PublicKey) {
-  const [associatedTokenAddress] = await PublicKey.findProgramAddressSync(
-    [
-      walletAddress.toBuffer(),
-      TOKEN_PROGRAM_ID.toBuffer(),
-      tokenMint.toBuffer(),
-    ],
-    new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
-  );
-  return associatedTokenAddress;
-}
 
 export function SwapInterface() {
   const { connected, publicKey, sendTransaction } = useWallet();
