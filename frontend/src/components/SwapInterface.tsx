@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
@@ -24,6 +24,43 @@ export function SwapInterface() {
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [slippage] = useState(1.0);
+  const [poolExists, setPoolExists] = useState<boolean | null>(null);
+
+  // Check if pool exists
+  useEffect(() => {
+    const checkPool = async () => {
+      try {
+        const info = await connection.getAccountInfo(POOL_PDA);
+        setPoolExists(!!info);
+      } catch (err) {
+        console.error('Error checking pool:', err);
+        setPoolExists(false);
+      }
+    };
+    checkPool();
+  }, [connection]);
+
+  if (poolExists === false) {
+    return (
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+        <h2 className="text-2xl font-bold text-white mb-4">⚠️ Pool Not Initialized</h2>
+        <p className="text-purple-300 mb-4">
+          The liquidity pool needs to be initialized before you can swap.
+        </p>
+        <div className="bg-yellow-500/20 border border-yellow-500 text-yellow-200 px-4 py-3 rounded-lg mb-4">
+          <p className="font-bold mb-2">To initialize:</p>
+          <ol className="list-decimal list-inside space-y-1 text-sm">
+            <li>Run: <code className="bg-black/20 px-2 py-1 rounded">node scripts/init-pool.js</code></li>
+            <li>Wait for confirmation</li>
+            <li>Refresh this page</li>
+          </ol>
+        </div>
+        <p className="text-sm text-purple-300">
+          Once initialized, you'll be able to swap USDC ↔ $LITTER
+        </p>
+      </div>
+    );
+  }
 
   const handleSwap = useCallback(async () => {
     if (!publicKey || !amount) return;
