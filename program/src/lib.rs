@@ -119,26 +119,32 @@ fn process_deposit(
     data: &[u8],
 ) -> ProgramResult {
     // 0. user (signer)
-    // 1. config
-    // 2. pool
-    // 3. user_litter_ata
-    // 4. pool_litter_ata (owned by authority, not PDA!)
-    // 5. litter_mint
-    // 6. token_program
+    // 1. authority (signer - the wallet that owns the pool vault)
+    // 2. config
+    // 3. pool
+    // 4. user_litter_ata
+    // 5. pool_litter_ata
+    // 6. litter_mint
+    // 7. token_program
     
-    if accounts.len() < 7 {
+    if accounts.len() < 8 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let user = &accounts[0];
-    let config_acc = &accounts[1];
-    let pool_acc = &accounts[2];
-    let user_litter_ata = &accounts[3];
-    let pool_litter_ata = &accounts[4];
-    let _litter_mint = &accounts[5];
-    let _token_program = &accounts[6];
+    let authority = &accounts[1];
+    let config_acc = &accounts[2];
+    let pool_acc = &accounts[3];
+    let user_litter_ata = &accounts[4];
+    let pool_litter_ata = &accounts[5];
+    let _litter_mint = &accounts[6];
+    let _token_program = &accounts[7];
 
     if !user.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
@@ -193,19 +199,33 @@ fn process_withdraw(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    if accounts.len() < 7 {
+    // 0. user (signer)
+    // 1. authority (signer)
+    // 2. config
+    // 3. pool
+    // 4. user_litter_ata
+    // 5. pool_litter_ata
+    // 6. litter_mint
+    // 7. token_program
+    
+    if accounts.len() < 8 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
     let user = &accounts[0];
-    let config_acc = &accounts[1];
-    let pool_acc = &accounts[2];
-    let user_litter_ata = &accounts[3];
-    let pool_litter_ata = &accounts[4];
-    let _litter_mint = &accounts[5];
-    let _token_program = &accounts[6];
+    let authority = &accounts[1];
+    let config_acc = &accounts[2];
+    let pool_acc = &accounts[3];
+    let user_litter_ata = &accounts[4];
+    let pool_litter_ata = &accounts[5];
+    let _litter_mint = &accounts[6];
+    let _token_program = &accounts[7];
 
     if !user.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    
+    if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 

@@ -3,7 +3,9 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
+const ATA_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID || 'GZMVhkNjd28Jsj8iUuMKfSg1mPdGuXCeUE3khgxxF7DM'
 );
@@ -12,6 +14,15 @@ const CONFIG_PDA = new PublicKey(
 );
 const POOL_PDA = new PublicKey(
   import.meta.env.VITE_POOL_PDA || 'HY1dgL4aD7pmvq5WhZUgF3zTLNemsR6FqzaLnA3TEb6g'
+);
+const LITTER_MINT = new PublicKey(
+  import.meta.env.VITE_LITTER_MINT || 'CG33xMCtxfsT8m9WyUhg5uYooY8baC3xYp398254aBP7'
+);
+const POOL_VAULT = new PublicKey(
+  import.meta.env.VITE_POOL_VAULT || '3nBGyCujS61CYM9PtSTAa9oeg8p3CLCoPeNbPupNwgWK'
+);
+const AUTHORITY = new PublicKey(
+  import.meta.env.VITE_AUTHORITY || '9y2YgLd4x5rB4yKDj4nipzGPRYjtBfGmRs28LTX73cf7'
 );
 
 export function SwapInterface() {
@@ -76,18 +87,31 @@ export function SwapInterface() {
       const amountNum = parseFloat(amount);
       const lamports = Math.floor(amountNum * LAMPORTS_PER_SOL);
       
+      // Get token accounts
+      const [userLitterAta] = PublicKey.findProgramAddressSync(
+        [publicKey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), LITTER_MINT.toBuffer()],
+        ATA_PROGRAM_ID
+      );
+      
+      const poolLitterAta = POOL_VAULT; // Already the ATA
+      
       // Create instruction data
       const data = Buffer.alloc(9);
       data[0] = mode === 'deposit' ? 1 : 2; // 1 for deposit, 2 for withdraw
       data.writeBigUInt64LE(BigInt(lamports), 1);
 
-      // Create instruction with 3 accounts only (no token transfers yet)
+      // Create instruction with 8 accounts
       const instruction = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: publicKey, isSigner: true, isWritable: true },
+          { pubkey: AUTHORITY, isSigner: true, isWritable: false }, // Authority signs
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
+          { pubkey: userLitterAta, isSigner: false, isWritable: true },
+          { pubkey: poolLitterAta, isSigner: false, isWritable: true },
+          { pubkey: LITTER_MINT, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
         data: data,
       });
