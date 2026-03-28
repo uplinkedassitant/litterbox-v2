@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
 export function SwapInterface() {
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, disconnect } = useWallet();
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ export function SwapInterface() {
 
     try {
       // TODO: Implement actual swap logic
-      alert('Swap functionality coming in next update!');
+      alert(`Swap functionality coming soon!\nMode: ${mode}\nAmount: ${amount}`);
     } catch (err: any) {
       setError(err.message || 'Transaction failed');
     } finally {
@@ -30,6 +31,26 @@ export function SwapInterface() {
       <h2 className="text-2xl font-bold text-white mb-4">
         {mode === 'deposit' ? '💰 Deposit USDC' : '💸 Withdraw USDC'}
       </h2>
+
+      {/* Wallet Status */}
+      <div className="mb-4 p-3 bg-white/10 rounded-lg">
+        {connected ? (
+          <div className="flex items-center justify-between">
+            <span className="text-green-400 text-sm">✅ Wallet Connected</span>
+            <button
+              onClick={() => disconnect()}
+              className="text-xs text-red-400 hover:text-red-300"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <div className="text-center">
+            <p className="text-purple-300 text-sm mb-2">Connect wallet to swap</p>
+            <WalletMultiButton />
+          </div>
+        )}
+      </div>
 
       {/* Mode Toggle */}
       <div className="flex mb-6">
@@ -66,7 +87,7 @@ export function SwapInterface() {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
             disabled={!connected}
           />
         </div>
@@ -82,7 +103,7 @@ export function SwapInterface() {
           disabled={!connected || !amount || loading}
           className="w-full py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
         >
-          {loading ? 'Processing...' : connected ? 'Swap' : 'Connect Wallet'}
+          {loading ? 'Processing...' : connected ? 'Swap' : 'Connect Wallet First'}
         </button>
       </form>
 

@@ -1,7 +1,32 @@
 import { FC, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { 
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  TrustWalletAdapter,
+  LedgerWalletAdapter,
+  SafePalWalletAdapter,
+  Coin98WalletAdapter,
+  GlowWalletAdapter,
+  SlopeWalletAdapter,
+  TokenPocketWalletAdapter,
+  BitpieWalletAdapter,
+  CloverWalletAdapter,
+  CoinhubWalletAdapter,
+  FractalWalletAdapter,
+  HuobiWalletAdapter,
+  HyperPayWalletAdapter,
+  KeplrWalletAdapter,
+  MathWalletAdapter,
+  NekoWalletAdapter,
+  ONEWalletAdapter,
+  ParticleWalletAdapter,
+  SalmonWalletAdapter,
+  SkyWalletAdapter,
+  WalletConnectWalletAdapter,
+  XDEFIWalletAdapter,
+} from '@solana/wallet-adapter-wallets';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { SwapInterface } from './components/SwapInterface';
 import { PoolStats } from './components/PoolStats';
@@ -47,7 +72,33 @@ function AppContent() {
 
 const App: FC = () => {
   const endpoint = useMemo(() => RPC_URL, []);
-  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+  
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+    new TrustWalletAdapter(),
+    new LedgerWalletAdapter(),
+    new SafePalWalletAdapter(),
+    new Coin98WalletAdapter(),
+    new GlowWalletAdapter(),
+    new SlopeWalletAdapter(),
+    new TokenPocketWalletAdapter(),
+    new BitpieWalletAdapter(),
+    new CloverWalletAdapter(),
+    new CoinhubWalletAdapter(),
+    new FractalWalletAdapter(),
+    new HuobiWalletAdapter(),
+    new HyperPayWalletAdapter(),
+    new KeplrWalletAdapter(),
+    new MathWalletAdapter(),
+    new NekoWalletAdapter(),
+    new ONEWalletAdapter(),
+    new ParticleWalletAdapter(),
+    new SalmonWalletAdapter(),
+    new SkyWalletAdapter(),
+    new WalletConnectWalletAdapter(),
+    new XDEFIWalletAdapter(),
+  ], []);
 
   return (
     <ConnectionProvider config={{ commitment: 'confirmed' }} endpoint={endpoint}>
