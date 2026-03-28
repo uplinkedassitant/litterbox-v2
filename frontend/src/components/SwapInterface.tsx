@@ -31,6 +31,11 @@ export function SwapInterface() {
     // - Pool's Litter ATA
     // - Actual token transfer instructions
     
+    // Convert amount to bytes (u64 little-endian)
+    const amountBytes = new Uint8Array(8);
+    const amountArray = new Uint8Array([1]); // discriminator for swap
+    const data = new Uint8Array([...amountArray, ...amountBytes]);
+    
     const instruction = new TransactionInstruction({
       programId,
       keys: [
@@ -39,7 +44,7 @@ export function SwapInterface() {
         { pubkey: poolPda, isSigner: false, isWritable: true },
         // Add token accounts here
       ],
-      data: Buffer.from([1, ...new Uint8Array(8).fill(0)]), // Swap discriminator + amount
+      data: data,
     });
 
     const transaction = new Transaction().add(instruction);
@@ -58,6 +63,11 @@ export function SwapInterface() {
     const configPda = new PublicKey(CONFIG_PDA);
     const poolPda = new PublicKey(POOL_PDA);
 
+    // Convert amount to bytes (u64 little-endian)
+    const amountBytes = new Uint8Array(8);
+    const amountArray = new Uint8Array([2]); // discriminator for withdraw
+    const data = new Uint8Array([...amountArray, ...amountBytes]);
+    
     const instruction = new TransactionInstruction({
       programId,
       keys: [
@@ -66,7 +76,7 @@ export function SwapInterface() {
         { pubkey: poolPda, isSigner: false, isWritable: true },
         // Add token accounts here
       ],
-      data: Buffer.from([2, ...new Uint8Array(8).fill(0)]), // Withdraw discriminator + amount
+      data: data,
     });
 
     const transaction = new Transaction().add(instruction);
