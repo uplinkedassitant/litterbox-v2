@@ -132,9 +132,14 @@ export function SwapInterface() {
         </div>
       )}
 
-      <h2 className="text-2xl font-bold text-white mb-4">
-        {mode === 'buy' ? '💰 Buy $Litter' : '💸 Sell $Litter'}
-      </h2>
+      <div className="mb-4 text-center">
+        <h2 className="text-2xl font-bold text-white mb-2">
+          {mode === 'buy' ? '💰 Buy $Litter' : '💸 Sell $Litter'}
+        </h2>
+        <p className="text-purple-300 text-sm">
+          Official $Litter Token • Powered by Pump.fun
+        </p>
+      </div>
 
       <div className="mb-4 p-3 bg-white/10 rounded-lg">
         {connected ? (
