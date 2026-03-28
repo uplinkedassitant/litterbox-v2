@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
@@ -98,16 +98,14 @@ export function SwapInterface() {
       data[0] = mode === 'deposit' ? 1 : 2; // 1 for deposit, 2 for withdraw
       data.writeBigUInt64LE(BigInt(lamports), 1);
 
-      // Create instruction with ALL required accounts
+      // Create instruction with simplified accounts (no token program for now)
       const instruction = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
-          { pubkey: userLitterAta, isSigner: false, isWritable: true },
-          { pubkey: POOL_PDA, isSigner: false, isWritable: false }, // litter_mint (using pool as placeholder)
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          // Skip token accounts for initial version - just track SOL deposit
         ],
         data: data,
       });
@@ -116,18 +114,12 @@ export function SwapInterface() {
       
       // Add SOL transfer for deposit
       if (mode === 'deposit') {
+        // Transfer SOL to pool PDA
         transaction.add(
-          new TransactionInstruction({
-            programId: new PublicKey('11111111111111111111111111111111'),
-            keys: [
-              { pubkey: publicKey, isSigner: true, isWritable: true },
-              { pubkey: POOL_PDA, isSigner: false, isWritable: true },
-            ],
-            data: Buffer.from([
-              2, // Transfer instruction
-              ...new Uint8Array(8), // padding
-              ...BigInt(lamports).toString(2).padStart(64, '0').split('').reverse().map(b => parseInt(b)).reduce((acc, b, i) => acc + b * Math.pow(2, i), 0).toString(16).match(/.{1,2}/g)!.reverse().map(b => parseInt(b, 16)),
-            ].slice(0, 9)),
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: POOL_PDA,
+            lamports: lamports,
           })
         );
       }

@@ -216,32 +216,17 @@ fn process_deposit(
     let fee_amount = (litter_amount * FEE_BPS) / FEE_DENOMINATOR;
     let litter_to_user = litter_amount.saturating_sub(fee_amount);
 
-    // Transfer SOL from user to pool (native transfer)
-    // This happens automatically via the transaction's lamports transfer
-    // We just need to track it in the pool state
-
-    // Mint/Transfer Litter to user
-    // For bonding curve, we transfer from pool's litter account to user
-    // This assumes the pool has litter tokens (minted during initialization)
-    if litter_to_user > 0 {
-        Transfer {
-            source: user_litter_ata,  // Should be pool's litter ATA
-            destination: user_litter_ata,
-            authority: config_acc,  // Pool authority signs
-            amount: litter_to_user,
-            program_id: None,
-        }.invoke()?;
-    }
-
-    // Update pool state
+    // For initial version, we'll just track the deposit in pool state
+    // Token transfers will be handled separately or in a future version
+    
+    // Update pool state - track the SOL deposit
     let new_real_sol = real_sol + sol_amount;
-    let new_real_litter = real_litter.saturating_sub(litter_to_user);
     let new_is_active = 1u8;  // Activate on first deposit
 
     let pool_data_mut = unsafe { pool_acc.borrow_mut_data_unchecked() };
     pool_data_mut[0..8].copy_from_slice(&virtual_litter.to_le_bytes());
     pool_data_mut[8..16].copy_from_slice(&virtual_sol.to_le_bytes());
-    pool_data_mut[16..24].copy_from_slice(&new_real_litter.to_le_bytes());
+    pool_data_mut[16..24].copy_from_slice(&real_litter.to_le_bytes());  // Keep same
     pool_data_mut[24..32].copy_from_slice(&new_real_sol.to_le_bytes());
     pool_data_mut[32] = new_is_active;
 
