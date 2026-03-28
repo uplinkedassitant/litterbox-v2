@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
 const PROGRAM_ID = import.meta.env.VITE_PROGRAM_ID || 'AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG';
@@ -17,32 +17,30 @@ export function SwapInterface() {
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
 
-  const handleDeposit = async (_amount: number) => {
+  const handleSwap = async (usdcAmount: number) => {
     if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
 
     const programId = new PublicKey(PROGRAM_ID);
     const configPda = new PublicKey(CONFIG_PDA);
     const poolPda = new PublicKey(POOL_PDA);
 
-    // Note: This is a simplified version - in production you'd need:
-    // - USDC mint address
-    // - User's USDC ATA
-    // - Pool's USDC ATA  
-    // - User's Litter ATA
-    // - Pool's Litter ATA
-    // - Actual token transfer instructions
-    
-    // Convert amount to bytes (u64 little-endian)
-    const amountBytes = new Uint8Array(8);
-    const data = Buffer.from([1, ...amountBytes]); // discriminator 1 for swap
-    
+    // Create instruction data: discriminator (1 byte) + amount (8 bytes u64 LE)
+    const data = Buffer.alloc(9);
+    data[0] = 1; // discriminator for swap
+    data.writeBigUInt64LE(BigInt(Math.floor(usdcAmount * 1_000_000)), 1); // Convert to 6 decimals
+
     const instruction = new TransactionInstruction({
       programId,
       keys: [
         { pubkey: publicKey, isSigner: true, isWritable: true },
         { pubkey: configPda, isSigner: false, isWritable: true },
         { pubkey: poolPda, isSigner: false, isWritable: true },
-        // Add token accounts here
+        // Note: In production, you'd also need:
+        // - user_usdc_ata
+        // - pool_usdc_ata
+        // - user_litter_ata
+        // - litter_mint
+        // - token_program
       ],
       data: data,
     });
@@ -56,24 +54,30 @@ export function SwapInterface() {
     return signature;
   };
 
-  const handleWithdraw = async (_amount: number) => {
+  const handleWithdraw = async (litterAmount: number) => {
     if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
 
     const programId = new PublicKey(PROGRAM_ID);
     const configPda = new PublicKey(CONFIG_PDA);
     const poolPda = new PublicKey(POOL_PDA);
 
-    // Convert amount to bytes (u64 little-endian)
-    const amountBytes = new Uint8Array(8);
-    const data = Buffer.from([2, ...amountBytes]); // discriminator 2 for withdraw
-    
+    // Create instruction data: discriminator (1 byte) + amount (8 bytes u64 LE)
+    const data = Buffer.alloc(9);
+    data[0] = 2; // discriminator for withdraw
+    data.writeBigUInt64LE(BigInt(Math.floor(litterAmount * 1_000_000)), 1); // Convert to 6 decimals
+
     const instruction = new TransactionInstruction({
       programId,
       keys: [
         { pubkey: publicKey, isSigner: true, isWritable: true },
         { pubkey: configPda, isSigner: false, isWritable: true },
         { pubkey: poolPda, isSigner: false, isWritable: true },
-        // Add token accounts here
+        // Note: In production, you'd also need:
+        // - user_usdc_ata
+        // - pool_usdc_ata
+        // - user_litter_ata
+        // - litter_mint
+        // - token_program
       ],
       data: data,
     });
@@ -99,7 +103,7 @@ export function SwapInterface() {
       let signature: string;
 
       if (mode === 'deposit') {
-        signature = await handleDeposit(amountNum);
+        signature = await handleSwap(amountNum);
       } else {
         signature = await handleWithdraw(amountNum);
       }
@@ -108,6 +112,7 @@ export function SwapInterface() {
       alert(`Transaction successful!\nSignature: ${signature}`);
       setAmount('');
     } catch (err: any) {
+      console.error('Swap error:', err);
       setError(err.message || 'Transaction failed');
     } finally {
       setLoading(false);
