@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
-import { Buffer } from 'buffer';
-
-const PROGRAM_ID = import.meta.env.VITE_PROGRAM_ID || 'AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG';
-const CONFIG_PDA = import.meta.env.VITE_CONFIG_PDA || 'GSyYSVVz9yrk6XSeF9zMi9GzvtUk47mKVhjKJVW4HTGZ';
-const POOL_PDA = import.meta.env.VITE_POOL_PDA || 'H3LwN5cS6zyX3iU8PwnDMXh4RbFAmwBKGkg81UzGuwFt';
+import { Transaction } from '@solana/web3.js';
+import {
+  createSwapInstruction,
+  createWithdrawInstruction,
+  findAssociatedTokenAddress,
+  USDC_MINT,
+  POOL_PDA,
+  TOKEN_PROGRAM_ID,
+} from '../utils/litterbox-client';
 
 export function SwapInterface() {
   const { connected, publicKey, signTransaction, sendTransaction } = useWallet();
@@ -17,80 +20,6 @@ export function SwapInterface() {
   const [error, setError] = useState<string | null>(null);
   const [txSignature, setTxSignature] = useState<string | null>(null);
 
-  const handleSwap = async (usdcAmount: number) => {
-    if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
-
-    const programId = new PublicKey(PROGRAM_ID);
-    const configPda = new PublicKey(CONFIG_PDA);
-    const poolPda = new PublicKey(POOL_PDA);
-
-    // Create instruction data: discriminator (1 byte) + amount (8 bytes u64 LE)
-    const data = Buffer.alloc(9);
-    data[0] = 1; // discriminator for swap
-    data.writeBigUInt64LE(BigInt(Math.floor(usdcAmount * 1_000_000)), 1); // Convert to 6 decimals
-
-    const instruction = new TransactionInstruction({
-      programId,
-      keys: [
-        { pubkey: publicKey, isSigner: true, isWritable: true },
-        { pubkey: configPda, isSigner: false, isWritable: true },
-        { pubkey: poolPda, isSigner: false, isWritable: true },
-        // Note: In production, you'd also need:
-        // - user_usdc_ata
-        // - pool_usdc_ata
-        // - user_litter_ata
-        // - litter_mint
-        // - token_program
-      ],
-      data: data,
-    });
-
-    const transaction = new Transaction().add(instruction);
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-
-    const signature = await sendTransaction(transaction, connection);
-    return signature;
-  };
-
-  const handleWithdraw = async (litterAmount: number) => {
-    if (!publicKey || !signTransaction) throw new Error('Wallet not connected');
-
-    const programId = new PublicKey(PROGRAM_ID);
-    const configPda = new PublicKey(CONFIG_PDA);
-    const poolPda = new PublicKey(POOL_PDA);
-
-    // Create instruction data: discriminator (1 byte) + amount (8 bytes u64 LE)
-    const data = Buffer.alloc(9);
-    data[0] = 2; // discriminator for withdraw
-    data.writeBigUInt64LE(BigInt(Math.floor(litterAmount * 1_000_000)), 1); // Convert to 6 decimals
-
-    const instruction = new TransactionInstruction({
-      programId,
-      keys: [
-        { pubkey: publicKey, isSigner: true, isWritable: true },
-        { pubkey: configPda, isSigner: false, isWritable: true },
-        { pubkey: poolPda, isSigner: false, isWritable: true },
-        // Note: In production, you'd also need:
-        // - user_usdc_ata
-        // - pool_usdc_ata
-        // - user_litter_ata
-        // - litter_mint
-        // - token_program
-      ],
-      data: data,
-    });
-
-    const transaction = new Transaction().add(instruction);
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = publicKey;
-
-    const signature = await sendTransaction(transaction, connection);
-    return signature;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!publicKey || !amount) return;
@@ -100,12 +29,46 @@ export function SwapInterface() {
 
     try {
       const amountNum = parseFloat(amount);
+      
+      // Find token accounts
+      const userUsdcAta = await findAssociatedTokenAddress(publicKey, USDC_MINT);
+      const poolUsdcAta = await findAssociatedTokenAddress(POOL_PDA, USDC_MINT);
+      const userLitterAta = await findAssociatedTokenAddress(publicKey, POOL_PDA);
+      
       let signature: string;
 
       if (mode === 'deposit') {
-        signature = await handleSwap(amountNum);
+        const instruction = createSwapInstruction(
+          publicKey,
+          userUsdcAta,
+          poolUsdcAta,
+          userLitterAta,
+          USDC_MINT,
+          amountNum
+        );
+        
+        const transaction = new Transaction().add(instruction);
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+
+        signature = await sendTransaction(transaction, connection);
       } else {
-        signature = await handleWithdraw(amountNum);
+        const instruction = createWithdrawInstruction(
+          publicKey,
+          userUsdcAta,
+          poolUsdcAta,
+          userLitterAta,
+          USDC_MINT,
+          amountNum
+        );
+        
+        const transaction = new Transaction().add(instruction);
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+
+        signature = await sendTransaction(transaction, connection);
       }
 
       setTxSignature(signature);
