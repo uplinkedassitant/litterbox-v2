@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
+import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
@@ -14,6 +14,7 @@ const CONFIG_PDA = new PublicKey(
 const POOL_PDA = new PublicKey(
   import.meta.env.VITE_POOL_PDA || 'H3LwN5cS6zyX3iU8PwnDMXh4RbFAmwBKGkg81UzGuwFt'
 );
+const USDC_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
 
 // Helper to find associated token address
 async function findAssociatedTokenAddress(walletAddress: PublicKey, tokenMint: PublicKey) {
@@ -39,19 +40,12 @@ export function SwapInterface() {
   const [showPreview, setShowPreview] = useState(false);
   const [slippage] = useState(1.0);
   const [poolExists, setPoolExists] = useState<boolean | null>(null);
-  const [poolData, setPoolData] = useState<any>(null);
 
   // Check if pool exists
   useEffect(() => {
     const checkPool = async () => {
       try {
         const info = await connection.getAccountInfo(POOL_PDA);
-        if (info && info.data.length === 40) {
-          const virtualLitter = info.data.readBigUInt64LE(0);
-          const virtualUsdc = info.data.readBigUInt64LE(8);
-          const isActive = info.data[32] === 1;
-          setPoolData({ virtualLitter, virtualUsdc, isActive });
-        }
         setPoolExists(!!info);
       } catch (err) {
         console.error('Error checking pool:', err);
