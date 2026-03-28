@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const PROGRAM_ID = new PublicKey(
   import.meta.env.VITE_PROGRAM_ID || 'AX6vgdmqDXRVd3kNwT8Xt7B49GcDTDFR4LwV7caxmZCG'
@@ -13,6 +14,19 @@ const CONFIG_PDA = new PublicKey(
 const POOL_PDA = new PublicKey(
   import.meta.env.VITE_POOL_PDA || 'H3LwN5cS6zyX3iU8PwnDMXh4RbFAmwBKGkg81UzGuwFt'
 );
+
+// Helper to find associated token address
+async function findAssociatedTokenAddress(walletAddress: PublicKey, tokenMint: PublicKey) {
+  const [associatedTokenAddress] = await PublicKey.findProgramAddressSync(
+    [
+      walletAddress.toBuffer(),
+      TOKEN_PROGRAM_ID.toBuffer(),
+      tokenMint.toBuffer(),
+    ],
+    new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
+  );
+  return associatedTokenAddress;
+}
 
 export function SwapInterface() {
   const { connected, publicKey, sendTransaction } = useWallet();
@@ -25,12 +39,19 @@ export function SwapInterface() {
   const [showPreview, setShowPreview] = useState(false);
   const [slippage] = useState(1.0);
   const [poolExists, setPoolExists] = useState<boolean | null>(null);
+  const [poolData, setPoolData] = useState<any>(null);
 
   // Check if pool exists
   useEffect(() => {
     const checkPool = async () => {
       try {
         const info = await connection.getAccountInfo(POOL_PDA);
+        if (info && info.data.length === 40) {
+          const virtualLitter = info.data.readBigUInt64LE(0);
+          const virtualUsdc = info.data.readBigUInt64LE(8);
+          const isActive = info.data[32] === 1;
+          setPoolData({ virtualLitter, virtualUsdc, isActive });
+        }
         setPoolExists(!!info);
       } catch (err) {
         console.error('Error checking pool:', err);
@@ -50,14 +71,11 @@ export function SwapInterface() {
         <div className="bg-yellow-500/20 border border-yellow-500 text-yellow-200 px-4 py-3 rounded-lg mb-4">
           <p className="font-bold mb-2">To initialize:</p>
           <ol className="list-decimal list-inside space-y-1 text-sm">
-            <li>Run: <code className="bg-black/20 px-2 py-1 rounded">node scripts/init-pool.js</code></li>
+            <li>Run: <code className="bg-black/20 px-2 py-1 rounded">node scripts/initialize-pool.js</code></li>
             <li>Wait for confirmation</li>
             <li>Refresh this page</li>
           </ol>
         </div>
-        <p className="text-sm text-purple-300">
-          Once initialized, you'll be able to swap USDC ↔ $LITTER
-        </p>
       </div>
     );
   }
@@ -71,18 +89,28 @@ export function SwapInterface() {
     try {
       const amountNum = parseFloat(amount);
       
-      // Create instruction data: discriminator (1 byte) + amount (8 bytes u64 LE)
+      // Get or create token accounts
+      const userUsdcAta = await findAssociatedTokenAddress(publicKey, USDC_MINT);
+      const poolUsdcAta = await findAssociatedTokenAddress(POOL_PDA, USDC_MINT);
+      const userLitterAta = await findAssociatedTokenAddress(publicKey, POOL_PDA);
+      
+      // Create instruction data
       const data = Buffer.alloc(9);
       data[0] = mode === 'deposit' ? 1 : 2; // 1 for swap, 2 for withdraw
       data.writeBigUInt64LE(BigInt(Math.floor(amountNum * 1_000_000)), 1);
 
-      // Simplified instruction with minimal accounts for testing
+      // Create instruction with ALL required accounts
       const instruction = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: publicKey, isSigner: true, isWritable: true },
           { pubkey: CONFIG_PDA, isSigner: false, isWritable: true },
           { pubkey: POOL_PDA, isSigner: false, isWritable: true },
+          { pubkey: userUsdcAta, isSigner: false, isWritable: true },
+          { pubkey: poolUsdcAta, isSigner: false, isWritable: true },
+          { pubkey: userLitterAta, isSigner: false, isWritable: true },
+          { pubkey: POOL_PDA, isSigner: false, isWritable: false }, // litter_mint (using pool as placeholder)
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
         data: data,
       });
@@ -92,7 +120,7 @@ export function SwapInterface() {
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
-      // Try to simulate first to get better error
+      // Simulate first
       console.log('Simulating transaction...');
       try {
         const simulation = await connection.simulateTransaction(transaction);
@@ -118,17 +146,17 @@ export function SwapInterface() {
       console.log('Sending transaction...');
       const signature = await sendTransaction(transaction, connection);
       console.log('Transaction sent:', signature);
+      
       setTxSignature(signature);
       setShowPreview(false);
       setAmount('');
-      alert(`Transaction sent!\nSignature: ${signature}\n\nNote: The program may reject this because token accounts are needed. Check console for details.`);
+      alert(`Transaction sent!\nSignature: ${signature}`);
     } catch (err: any) {
       console.error('Swap error:', err);
       let errorMessage = err.message || 'Transaction failed';
       
       if (err.logs) {
         console.log('Program logs:', err.logs);
-        // Look for specific program errors
         const programError = err.logs.find((log: string) => 
           log.toLowerCase().includes('error') || 
           log.toLowerCase().includes('failed') ||
